@@ -75,7 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "BISMILLAH STORE",
+                  "RIAZ AHMAD CROKERY",
                   style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.w900,
@@ -83,7 +83,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 Text(
-                  "Peshawar Branch",
+                  "Jehangira Underpass Shop#21",
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 10,
