@@ -1,11 +1,24 @@
 // lib/screens/low_stock_screen.dart
 import 'package:flutter/material.dart';
+import '../data/data_store.dart';
+import '../utils/formatting.dart';
 
-class LowStockScreen extends StatelessWidget {
+class LowStockScreen extends StatefulWidget {
   const LowStockScreen({super.key});
 
   @override
+  State<LowStockScreen> createState() => _LowStockScreenState();
+}
+
+class _LowStockScreenState extends State<LowStockScreen> {
+  @override
   Widget build(BuildContext context) {
+    // Filter items with stock < 5
+    final lowStockItems = DataStore().inventory.where((item) {
+      int stock = Formatter.parseInt(item['stock'].toString());
+      return stock < 5;
+    }).toList();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -20,25 +33,38 @@ class LowStockScreen extends StatelessWidget {
           style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          const Text(
-            "ORDER KARNE WALA MAAL",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 20),
+      body: lowStockItems.isEmpty
+          ? const Center(child: Text("All stock is sufficient!"))
+          : ListView.builder(
+              padding: const EdgeInsets.all(24),
+              itemCount: lowStockItems.length + 1, // +1 for header
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "ORDER KARNE WALA MAAL",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                }
+                final item = lowStockItems[index - 1];
+                int stock = Formatter.parseInt(item['stock'].toString());
 
-          // Low Stock Items List
-          _buildLowStockItem("Bone China Cup", "2 pcs left", true),
-          _buildLowStockItem("Tea Spoon Set", "5 pcs left", false),
-          _buildLowStockItem("Water Glass", "1 pcs left", true), // Critical
-        ],
-      ),
+                return _buildLowStockItem(
+                  item['name'],
+                  "$stock pcs left",
+                  stock <= 2,
+                );
+              },
+            ),
     );
   }
 

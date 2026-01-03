@@ -1,6 +1,8 @@
 // lib/screens/expense_screen.dart
 import 'package:flutter/material.dart';
 import '../widgets/add_expense_sheet.dart';
+import '../data/data_store.dart';
+import '../utils/formatting.dart';
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -13,41 +15,31 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   // 1. STATE VARIABLES
   DateTime _selectedDate = DateTime.now();
   String _selectedCategory = "All";
-
-  // Dummy Data
-  final List<Map<String, String>> _todayExpenses = [
-    {"id": "1", "title": "Staff Lunch", "category": "Food", "amount": "850"},
-    {
-      "id": "2",
-      "title": "Rickshaw Fare",
-      "category": "Travel",
-      "amount": "200",
-    },
-    {"id": "5", "title": "Chai Pani", "category": "Food", "amount": "150"},
-  ];
-
-  final List<Map<String, String>> _yesterdayExpenses = [
-    {
-      "id": "3",
-      "title": "Electricity Bill",
-      "category": "Bills",
-      "amount": "4,500",
-    },
-    {"id": "4", "title": "Shop Rent", "category": "Rent", "amount": "35,000"},
-  ];
-
   final List<String> categories = ["Food", "Bills", "Rent", "Travel", "Extra"];
+
+  @override
+  void initState() {
+    super.initState();
+    DataStore().addListener(_onDataChange);
+  }
+
+  @override
+  void dispose() {
+    DataStore().removeListener(_onDataChange);
+    super.dispose();
+  }
+
+  void _onDataChange() {
+    setState(() {});
+  }
 
   // === FUNCTIONS ===
 
   void _deleteItem(String id, bool isToday) {
-    setState(() {
-      if (isToday) {
-        _todayExpenses.removeWhere((item) => item['id'] == id);
-      } else {
-        _yesterdayExpenses.removeWhere((item) => item['id'] == id);
-      }
-    });
+    DataStore().deleteExpense(id, isToday: isToday);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Expense Deleted")));
   }
 
   // === EDIT FEATURE (New Function) ===
@@ -218,12 +210,21 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Asli List mein Data Update
-                        setState(() {
-                          item['amount'] = amountController.text;
-                          item['title'] = titleController.text;
-                          item['category'] = currentCategory;
-                        });
+                         // Decide if today or yesterday based on where it came from
+                         // For simplicity, we assume we update in place.
+                         // But wait, `item` is a reference to the map in the list IF we passed it directly.
+                         // BUT `DataStore` returns unmodifiable lists. So we must use `updateExpense`.
+                         // We need to know if it is today or yesterday.
+                         // A simple hack: check if id exists in today list.
+                         bool isToday = DataStore().todayExpenses.any((element) => element['id'] == item['id']);
+
+                         Map<String, String> updatedItem = Map.from(item);
+                         updatedItem['amount'] = amountController.text;
+                         updatedItem['title'] = titleController.text;
+                         updatedItem['category'] = currentCategory;
+
+                        DataStore().updateExpense(item['id']!, updatedItem, isToday: isToday);
+
                         Navigator.pop(context); // Sheet Band
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -324,8 +325,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredToday = _getFilteredList(_todayExpenses);
-    final filteredYesterday = _getFilteredList(_yesterdayExpenses);
+    final filteredToday = _getFilteredList(DataStore().todayExpenses);
+    final filteredYesterday = _getFilteredList(DataStore().yesterdayExpenses);
+    final totalSpent = DataStore().getTotalExpenses();
 
     String currentMonthName = _getMonthName(_selectedDate.month);
     String currentYear = _selectedDate.year.toString();
@@ -415,9 +417,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    "Rs 45,200",
-                    style: TextStyle(
+                  Text(
+                    "Rs ${Formatter.formatCurrency(totalSpent)}", // Dynamic Total
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 40,
                       fontWeight: FontWeight.w900,

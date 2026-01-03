@@ -5,6 +5,8 @@ import '../widgets/overview_card.dart';
 import '../widgets/alert_card.dart';
 import '../widgets/analysis_chart.dart';
 import 'settings_screen.dart';
+import '../data/data_store.dart';
+import '../utils/formatting.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,6 +17,22 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String _filter = "Monthly";
+
+  @override
+  void initState() {
+    super.initState();
+    DataStore().addListener(_onDataChange);
+  }
+
+  @override
+  void dispose() {
+    DataStore().removeListener(_onDataChange);
+    super.dispose();
+  }
+
+  void _onDataChange() {
+    setState(() {});
+  }
 
   // Chart Data Logic
   Map<String, dynamic> get currentChartData {
@@ -40,6 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final chartData = currentChartData;
+    double totalStockValue = DataStore().getTotalStockValue();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -127,9 +146,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 20),
 
                 // === FIXED STOCK CARD (Blue) ===
-                const OverviewCard(
+                OverviewCard(
                   title: "TOTAL STOCK VALUE",
-                  amount: "Rs 1,250,000",
+                  amount: "Rs ${Formatter.formatCurrency(totalStockValue)}", // DYNAMIC
                   icon: Icons.inventory_2,
                 ),
 

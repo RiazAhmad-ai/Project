@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/add_item_sheet.dart';
 import 'camera_screen.dart'; // Camera Screen Import
+import '../data/data_store.dart';
+import '../utils/formatting.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -11,16 +13,25 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-  // Data
-  final List<Map<String, dynamic>> _stockItems = [
-    {"id": "1", "name": "Bone China Cup", "price": "450", "stock": "12"},
-    {"id": "2", "name": "Water Glass Set", "price": "1,200", "stock": "5"},
-    {"id": "3", "name": "Dinner Plate (L)", "price": "850", "stock": "24"},
-    {"id": "4", "name": "Tea Spoon Set", "price": "350", "stock": "0"},
-  ];
-
   String _searchQuery = "";
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    DataStore().addListener(_onDataChange);
+  }
+
+  @override
+  void dispose() {
+    DataStore().removeListener(_onDataChange);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onDataChange() {
+    setState(() {});
+  }
 
   // === 1. NEW LOGIC: CAMERA FIRST, THEN SHEET ===
   Future<void> _addNewItemWithCamera() async {
@@ -177,11 +188,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    setState(() {
-                      item['name'] = nameController.text;
-                      item['price'] = priceController.text;
-                      item['stock'] = stockController.text;
-                    });
+                    Map<String, dynamic> updatedItem = Map.from(item);
+                    updatedItem['name'] = nameController.text;
+                    updatedItem['price'] = priceController.text;
+                    updatedItem['stock'] = stockController.text;
+
+                    DataStore().updateInventoryItem(item['id'], updatedItem);
+
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Item Updated!")),
@@ -209,9 +222,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _deleteItem(String id) {
-    setState(() {
-      _stockItems.removeWhere((item) => item['id'] == id);
-    });
+    DataStore().deleteInventoryItem(id);
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("Item Deleted")));
@@ -219,7 +230,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredList = _stockItems.where((item) {
+    final filteredList = DataStore().inventory.where((item) {
       return item['name'].toString().toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -282,7 +293,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               itemCount: filteredList.length,
               itemBuilder: (context, index) {
                 final item = filteredList[index];
-                int stock = int.tryParse(item['stock']) ?? 0;
+                int stock = Formatter.parseInt(item['stock'].toString());
                 bool isLowStock = stock < 5;
 
                 return Dismissible(

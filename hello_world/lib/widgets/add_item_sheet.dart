@@ -1,5 +1,6 @@
 // lib/widgets/add_item_sheet.dart
 import 'package:flutter/material.dart';
+import '../data/data_store.dart';
 
 class AddItemSheet extends StatefulWidget {
   const AddItemSheet({super.key});
@@ -16,6 +17,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
   final List<Map<String, String>> _sizesList = [];
 
   // Controllers (Simple item ke liye)
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _simplePriceController = TextEditingController();
   final TextEditingController _simpleQtyController = TextEditingController(
     text: "1",
@@ -153,6 +155,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
             ),
             const SizedBox(height: 5),
             TextFormField(
+              controller: _nameController,
               autofocus: true,
               decoration: InputDecoration(
                 hintText: "Misal: T-Shirt / Joggers",
@@ -384,6 +387,34 @@ class _AddItemSheetState extends State<AddItemSheet> {
                       ),
                     );
                     return;
+                  }
+
+                  if (_nameController.text.isEmpty) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Please enter item name!"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (!_hasSizes) {
+                    DataStore().addInventoryItem({
+                      "id": DateTime.now().millisecondsSinceEpoch.toString(),
+                      "name": _nameController.text,
+                      "price": _simplePriceController.text,
+                      "stock": _simpleQtyController.text,
+                    });
+                  } else {
+                    for (var size in _sizesList) {
+                      DataStore().addInventoryItem({
+                        "id": DateTime.now().millisecondsSinceEpoch.toString() + size['name']!,
+                        "name": "${_nameController.text} (${size['name']})",
+                        "price": size['price'],
+                        "stock": size['qty'],
+                      });
+                    }
                   }
 
                   Navigator.pop(context);

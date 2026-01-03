@@ -1,12 +1,15 @@
 // lib/widgets/alert_card.dart
 import 'package:flutter/material.dart';
 import '../screens/low_stock_screen.dart'; // <--- Import zaroori hai
+import '../data/data_store.dart';
 
 class AlertCard extends StatelessWidget {
   const AlertCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    int lowStockCount = DataStore().getLowStockCount();
+
     // 1. Container ko GestureDetector mein wrap kiya taake click ho sake
     return GestureDetector(
       onTap: () {
@@ -37,11 +40,11 @@ class AlertCard extends StatelessWidget {
               size: 28,
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     "MAAL KAM HAI",
                     style: TextStyle(
                       color: Colors.white70,
@@ -50,8 +53,8 @@ class AlertCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    "5 Items khatam hone wale hain",
-                    style: TextStyle(
+                    "$lowStockCount Items khatam hone wale hain", // Dynamic
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,

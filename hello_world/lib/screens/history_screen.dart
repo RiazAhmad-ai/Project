@@ -1,5 +1,6 @@
 // lib/screens/history_screen.dart
 import 'package:flutter/material.dart';
+import '../data/data_store.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -13,53 +14,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
   DateTime _selectedDate = DateTime.now();
   String _searchQuery = "";
 
-  // Dummy Data
-  final List<Map<String, dynamic>> _historyItems = [
-    {
-      "id": "101",
-      "item": "Bone China Cup Set",
-      "qty": "2",
-      "price": "4,500",
-      "time": "10:30 AM",
-      "date": "Today",
-      "status": "Completed",
-    },
-    {
-      "id": "102",
-      "item": "Water Glass (6 Pcs)",
-      "qty": "1",
-      "price": "1,200",
-      "time": "11:15 AM",
-      "date": "Today",
-      "status": "Completed",
-    },
-    {
-      "id": "103",
-      "item": "Tea Spoon Set",
-      "qty": "3",
-      "price": "850",
-      "time": "04:45 PM",
-      "date": "Yesterday",
-      "status": "Refunded",
-    },
-    {
-      "id": "104",
-      "item": "Dinner Set (Large)",
-      "qty": "1",
-      "price": "12,000",
-      "time": "06:00 PM",
-      "date": "Yesterday",
-      "status": "Completed",
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    DataStore().addListener(_onDataChange);
+  }
+
+  @override
+  void dispose() {
+    DataStore().removeListener(_onDataChange);
+    super.dispose();
+  }
+
+  void _onDataChange() {
+    setState(() {});
+  }
 
   // === FUNCTIONS ===
 
   // Delete Function
   void _deleteItem(String id) {
-    setState(() {
-      _historyItems.removeWhere((item) => item['id'] == id);
-    });
+    DataStore().deleteHistoryItem(id);
   }
 
   // Calendar Picker
@@ -100,10 +75,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // Edit Dialog
   void _showEditDialog(Map<String, dynamic> item) {
     TextEditingController priceController = TextEditingController(
-      text: item['price'],
+      text: item['price'].toString(),
     );
     TextEditingController qtyController = TextEditingController(
-      text: item['qty'],
+      text: item['qty'].toString(),
     );
 
     showDialog(
@@ -142,10 +117,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                item['price'] = priceController.text;
-                item['qty'] = qtyController.text;
-              });
+               Map<String, dynamic> updatedItem = Map.from(item);
+               updatedItem['price'] = priceController.text;
+               updatedItem['qty'] = qtyController.text;
+               DataStore().updateHistoryItem(item['id'], updatedItem);
+
               Navigator.pop(context);
               ScaffoldMessenger.of(
                 context,
@@ -162,7 +138,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // === UI BUILD ===
   @override
   Widget build(BuildContext context) {
-    final filteredList = _historyItems.where((item) {
+    final filteredList = DataStore().historyItems.where((item) {
       return item['item'].toString().toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -402,9 +378,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     ),
                                     title: const Text("Mark as Refund (Wapis)"),
                                     onTap: () {
-                                      setState(() {
-                                        item['status'] = "Refunded";
-                                      });
+                                       Map<String, dynamic> updatedItem = Map.from(item);
+                                       updatedItem['status'] = "Refunded";
+                                       DataStore().updateHistoryItem(item['id'], updatedItem);
+
                                       Navigator.pop(context);
                                     },
                                   ),

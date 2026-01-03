@@ -1,5 +1,6 @@
 // lib/widgets/add_expense_sheet.dart
 import 'package:flutter/material.dart';
+import '../data/data_store.dart';
 
 class AddExpenseSheet extends StatefulWidget {
   const AddExpenseSheet({super.key});
@@ -11,6 +12,9 @@ class AddExpenseSheet extends StatefulWidget {
 class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String selectedCategory = "Food";
   final List<String> categories = ["Food", "Bills", "Rent", "Travel", "Extra"];
+
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _descController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +74,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               SizedBox(
                 width: 150, // Fixed width
                 child: TextFormField(
+                  controller: _amountController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center, // Beech mein likha jayega
                   autofocus: true, // Kholte hi keyboard aajaye
@@ -93,6 +98,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
 
           // === 2. DESCRIPTION INPUT ===
           TextFormField(
+            controller: _descController,
             decoration: InputDecoration(
               labelText: "Description (Tafseel)",
               prefixIcon: const Icon(Icons.edit_note, color: Colors.grey),
@@ -162,7 +168,32 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                if (_amountController.text.isEmpty) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Please enter amount!"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                DataStore().addExpense({
+                  "id": DateTime.now().millisecondsSinceEpoch.toString(),
+                  "title": _descController.text.isEmpty ? selectedCategory : _descController.text,
+                  "category": selectedCategory,
+                  "amount": _amountController.text,
+                }, isToday: true);
+
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Expense Added!"),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black, // Black button stylish lagta hai
                 padding: const EdgeInsets.symmetric(vertical: 18),
