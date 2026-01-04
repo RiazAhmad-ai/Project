@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../history/history_screen.dart';
 import '../expenses/expense_screen.dart';
-import '../inventory/camera_screen.dart';
 import '../../data/models/inventory_model.dart';
-import '../../services/ai_service.dart';
-import '../../services/recognition_service.dart';
 import '../inventory/sell_item_sheet.dart';
 
 class MainScreen extends StatefulWidget {
@@ -21,12 +18,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  // === CHANGE 1: List mein Order badal diya ===
   final List<Widget> _screens = [
     const DashboardScreen(), // 0: Home
     const InventoryScreen(), // 1: Stock
-    const ExpenseScreen(), // 2: Kharcha (Pehle yeh Index 3 tha)
-    const HistoryScreen(), // 3: History (Ab yeh last mein hai)
+    const ExpenseScreen(), // 2: Expenses
+    const HistoryScreen(), // 3: History
   ];
 
   void _onItemTapped(int index) {
@@ -35,59 +31,69 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  // Camera kholne ka function (Selling Mode)
-  void _openCamera() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CameraScreen(mode: 'sell')),
+  // === BARCODE SCANNER FOR SELLING ===
+  void _openBarcodeScanner() async {
+    final String? barcode = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text("Scan Item for Bill", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+            SizedBox(
+              height: 300,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: MobileScanner(
+                  onDetect: (capture) {
+                    final List<Barcode> barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      Navigator.pop(context, barcodes.first.rawValue);
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
     );
 
-    if (result != null && result is File) {
+    if (barcode == null) return;
+
+    // Search for match in inventory
+    final box = Hive.box<InventoryItem>('inventoryBox');
+    try {
+      final match = box.values.firstWhere((item) => item.barcode == barcode);
+      
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        builder: (context) => SellItemSheet(item: match),
+      );
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("🔍 Identifying Item..."),
-          duration: Duration(milliseconds: 1000),
+        SnackBar(
+          content: Text("❌ No item found with Barcode: $barcode"),
+          backgroundColor: Colors.red,
         ),
       );
-
-      try {
-        // AI Brain se fingerprint lein
-        final embedding = await AIService().getEmbedding(result);
-
-        // Database se items lein
-        final box = Hive.box<InventoryItem>('inventoryBox');
-        final allItems = box.values.toList();
-
-        // Match dhoondo
-        final match = RecognitionService().findMatch(embedding, allItems);
-
-        if (!mounted) return;
-
-        if (match != null) {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.white,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            ),
-            builder: (context) => SellItemSheet(item: match),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("❌ Item not found! Please add it first."),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        print("Error: $e");
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error Identification: $e")));
-      }
     }
   }
 
@@ -96,16 +102,16 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: _screens[_selectedIndex],
 
-      // Floating Camera Button
+      // Floating Barcode Scanner Button
       floatingActionButton: SizedBox(
         height: 65,
         width: 65,
         child: FloatingActionButton(
-          onPressed: _openCamera,
+          onPressed: _openBarcodeScanner,
           backgroundColor: Colors.red,
           shape: const CircleBorder(),
           elevation: 4,
-          child: const Icon(Icons.camera_alt, size: 30, color: Colors.white),
+          child: const Icon(Icons.qr_code_scanner, size: 30, color: Colors.white),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

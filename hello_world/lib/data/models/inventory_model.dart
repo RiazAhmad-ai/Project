@@ -1,7 +1,5 @@
 import 'package:hive/hive.dart';
 
-// Yeh line error degi shuru mein, pareshan na hon.
-// Jab hum command chalayenge to yeh file khud ban jayegi.
 part 'inventory_model.g.dart';
 
 @HiveType(typeId: 0)
@@ -21,12 +19,8 @@ class InventoryItem extends HiveObject {
   @HiveField(4)
   late String? description;
 
-  // === MAGIC PART ===
-  // Hum tasveer save nahi karenge, balki uska "AI Fingerprint" save karenge.
-  // List<double> = Ek photo ka fingerprint
-  // List<List<double>> = Multiple photos (angles) ke fingerprints
-  @HiveField(5)
-  late List<List<double>> embeddings;
+  @HiveField(6)
+  late String barcode;
 
   InventoryItem({
     required this.id,
@@ -34,6 +28,6 @@ class InventoryItem extends HiveObject {
     required this.price,
     required this.stock,
     this.description,
-    required this.embeddings,
+    this.barcode = "N/A",
   });
 }

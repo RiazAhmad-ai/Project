@@ -30,7 +30,7 @@ class DataStore extends ChangeNotifier {
         'price': item.price,
         'stock': item.stock,
         'description': item.description,
-        'embeddings': item.embeddings, // Full data for new phone
+        'barcode': item.barcode,
       }).toList(),
       'history': _historyBox.values.toList(),
       'expenses': _expensesBox.values.toList(),
@@ -52,7 +52,7 @@ class DataStore extends ChangeNotifier {
         price: (itemData['price'] as num).toDouble(),
         stock: (itemData['stock'] as num).toInt(),
         description: itemData['description'],
-        embeddings: (itemData['embeddings'] as List).map((e) => (e as List).map((v) => (v as num).toDouble()).toList()).toList(),
+        barcode: itemData['barcode'] ?? "N/A",
       );
       await _inventoryBox.put(item.id, item);
     }
@@ -79,11 +79,11 @@ class DataStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // === 1. INVENTORY ===
+  // === 1. INVENTORY (STILL USES HIVE) ===
   List<InventoryItem> get inventory => _inventoryBox.values.toList();
 
   void addInventoryItem(InventoryItem item) {
-    _inventoryBox.add(item);
+    _inventoryBox.put(item.id, item);
     notifyListeners();
   }
 
@@ -117,14 +117,12 @@ class DataStore extends ChangeNotifier {
     return _allExpenses.where((e) {
       if (e['date'] == null) return false;
       final eDate = DateTime.parse(e['date']!);
-      return d1.year == eDate.year &&
-          d1.month == eDate.month &&
-          d1.day == eDate.day;
+      return date.year == eDate.year &&
+          date.month == eDate.month &&
+          date.day == eDate.day;
     }).toList();
   }
 
-  // Shortcut variables for _isSameDay logic used above (fixing context issue)
-  DateTime get d1 => DateTime.now(); // Dummy getter to satisfy syntax context
 
   // Correct Helper
   bool _isSameDay(DateTime a, DateTime b) =>

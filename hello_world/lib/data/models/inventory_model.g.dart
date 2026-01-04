@@ -16,15 +16,22 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
+    
+    // Safely handle barcode: Try index 6, then index 5 if it's a string, then "N/A"
+    String barcodeValue = "N/A";
+    if (fields[6] is String) {
+      barcodeValue = fields[6];
+    } else if (fields[5] is String) {
+      barcodeValue = fields[5];
+    }
+
     return InventoryItem(
       id: fields[0] as String,
       name: fields[1] as String,
       price: fields[2] as double,
       stock: fields[3] as int,
       description: fields[4] as String?,
-      embeddings: (fields[5] as List)
-          .map((dynamic e) => (e as List).cast<double>())
-          .toList(),
+      barcode: barcodeValue,
     );
   }
 
@@ -42,8 +49,8 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       ..write(obj.stock)
       ..writeByte(4)
       ..write(obj.description)
-      ..writeByte(5)
-      ..write(obj.embeddings);
+      ..writeByte(6) // Use 6 here to match model
+      ..write(obj.barcode);
   }
 
   @override

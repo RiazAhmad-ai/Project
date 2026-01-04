@@ -1,9 +1,9 @@
-import 'dart:io';
+// lib/features/inventory/add_item_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'camera_screen.dart'; // Local feature screen
-import '../../services/ai_service.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../data/models/inventory_model.dart';
+import '../../data/repositories/data_store.dart';
 
 class AddItemSheet extends StatefulWidget {
   const AddItemSheet({super.key});
@@ -13,97 +13,97 @@ class AddItemSheet extends StatefulWidget {
 }
 
 class _AddItemSheetState extends State<AddItemSheet> {
-  // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _stockController = TextEditingController(
-    text: "1",
-  );
+  final TextEditingController _stockController = TextEditingController(text: "1");
   final TextEditingController _descController = TextEditingController();
+  final TextEditingController _barcodeController = TextEditingController();
 
-  // Images Store
-  final List<File> _capturedImages = [];
-  bool _isSaving = false; // Loading indicator
+  bool _isSaving = false;
 
-  // === 1. TAKE PHOTO ===
-  Future<void> _takePhoto() async {
-    // Open Camera Screen in 'add' mode
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CameraScreen(mode: 'add')),
+  // === BARCODE SCANNER ===
+  Future<void> _scanBarcode() async {
+    final String? barcode = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text("Scan Barcode", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+            SizedBox(
+              height: 300,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: MobileScanner(
+                  onDetect: (capture) {
+                    final List<Barcode> barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      Navigator.pop(context, barcodes.first.rawValue);
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
     );
 
-    // If photo returned
-    if (result != null && result is File) {
+    if (barcode != null) {
       setState(() {
-        _capturedImages.add(result);
+        _barcodeController.text = barcode;
       });
     }
   }
 
-  // === 2. REMOVE IMAGE ===
-  void _removePhoto(int index) {
-    setState(() {
-      _capturedImages.removeAt(index);
-    });
-  }
-
-  // === 3. FINAL SAVE LOGIC (JADOO YAHAN HAI) ===
   Future<void> _saveItem() async {
-    if (_priceController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Price is required!")),
-      );
+    if (_barcodeController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Barcode/Sticker Number is required!")));
       return;
     }
-
-    if (_capturedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please take at least one photo!")),
-      );
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item Name is required!")));
+      return;
+    }
+    if (_priceController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Price is required!")));
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      // A. Extract AI Fingerprint for each photo
-      List<List<double>> allEmbeddings = [];
-
-      for (var imageFile in _capturedImages) {
-        // Call AI Service
-        List<double> fingerprint = await AIService().getEmbedding(imageFile);
-        allEmbeddings.add(fingerprint);
-      }
-
-      // B. Create Data Object
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final newItem = InventoryItem(
-        id: timestamp, // Unique ID
-        name: _nameController.text.trim().isEmpty ? "Product #${timestamp.substring(timestamp.length - 4)}" : _nameController.text.trim(),
+        id: timestamp,
+        name: _nameController.text.trim(),
         price: double.tryParse(_priceController.text) ?? 0.0,
         stock: int.tryParse(_stockController.text) ?? 0,
-        description: _descController.text,
-        embeddings: allEmbeddings, // AI Fingerprints saved here
+        description: _descController.text.isEmpty ? null : _descController.text,
+        barcode: _barcodeController.text.trim(),
       );
 
-      // C. Save in Hive Box
-      var box = Hive.box<InventoryItem>('inventoryBox');
-      await box.add(newItem);
+      DataStore().addInventoryItem(newItem);
 
-      // D. Success! Close Sheet
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Item Saved with AI Fingerprints! ✅")),
+          const SnackBar(content: Text("Item Saved Successfully! ✅"), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
-      print("Error saving: $e");
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -112,22 +112,20 @@ class _AddItemSheetState extends State<AddItemSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // Keyboard ke liye padding
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
       padding: EdgeInsets.only(
         bottom: bottomPadding,
-        left: 20,
-        right: 20,
-        top: 20,
+        left: 24,
+        right: 24,
+        top: 24,
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle Bar
             Center(
               child: Container(
                 width: 40,
@@ -138,28 +136,54 @@ class _AddItemSheetState extends State<AddItemSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            const Text("ADD NEW STOCK", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
 
-            const Text(
-              "ADD NEW STOCK",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // Barcode Field with Scan Button
+            const Text("Barcode / Sticker Number", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _barcodeController,
+                    decoration: InputDecoration(
+                      hintText: "Enter Code",
+                      prefixIcon: const Icon(Icons.qr_code),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _scanBarcode,
+                  child: Container(
+                    height: 56,
+                    width: 56,
+                    decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(16)),
+                    child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // === INPUT FIELDS ===
+            const Text("Item Details", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
             TextField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: "Item Name (Optional)",
-                hintText: "Recognition works by photos",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                hintText: "Item Name",
+                prefixIcon: const Icon(Icons.inventory_2_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: Colors.grey[100],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
             Row(
               children: [
@@ -168,140 +192,65 @@ class _AddItemSheetState extends State<AddItemSheet> {
                     controller: _priceController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: "Price",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      hintText: "Cost Price",
+                      prefixIcon: const Icon(Icons.attach_money),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Colors.grey[100],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
                     controller: _stockController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: "Stock Qty",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      hintText: "Stock Qty",
+                      prefixIcon: const Icon(Icons.numbers),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: Colors.grey[100],
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            // === PHOTOS SECTION ===
-            const Text(
-              "Photos (Multiple Angles)",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            SizedBox(
-              height: 100,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _capturedImages.length + 1, // +1 for Add Button
-                itemBuilder: (context, index) {
-                  // Last item is Add Button
-                  if (index == _capturedImages.length) {
-                    return GestureDetector(
-                      onTap: _takePhoto,
-                      child: Container(
-                        width: 100,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          border: Border.all(
-                            color: Colors.blue,
-                            style: BorderStyle.solid,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.camera_alt, color: Colors.blue),
-                            Text(
-                              "Add Photo",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  // Captured Images
-                  return Stack(
-                    children: [
-                      Container(
-                        width: 100,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          image: DecorationImage(
-                            image: FileImage(_capturedImages[index]),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: GestureDetector(
-                          onTap: () => _removePhoto(index),
-                          child: Container(
-                            color: Colors.black54,
-                            child: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+            TextField(
+              controller: _descController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                hintText: "Description (Optional)",
+                prefixIcon: const Icon(Icons.description_outlined),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                filled: true,
+                fillColor: Colors.grey[100],
               ),
             ),
+            const SizedBox(height: 32),
 
-            const SizedBox(height: 20),
-
-            // === SAVE BUTTON ===
             SizedBox(
               width: double.infinity,
+              height: 56,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveItem, // Disable if saving
+                onPressed: _isSaving ? null : _saveItem,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
                 ),
                 child: _isSaving
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        "SAVE ITEM (AI PROCESSING)",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        "SAVE ITEM",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),

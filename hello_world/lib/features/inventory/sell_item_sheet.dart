@@ -1,3 +1,4 @@
+// lib/features/inventory/sell_item_sheet.dart
 import 'package:flutter/material.dart';
 import '../../data/models/inventory_model.dart';
 import '../../data/repositories/data_store.dart';
@@ -63,7 +64,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Sold $_sellQty items for Rs ${Formatter.formatCurrency(salePrice * _sellQty)} (Profit: Rs ${Formatter.formatCurrency(profit)})",
+            "Sold $_sellQty items for Rs ${Formatter.formatCurrency(salePrice * _sellQty)} ✅",
           ),
           backgroundColor: Colors.green,
         ),
