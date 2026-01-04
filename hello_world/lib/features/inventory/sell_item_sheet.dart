@@ -14,7 +14,9 @@ class SellItemSheet extends StatefulWidget {
 
 class _SellItemSheetState extends State<SellItemSheet> {
   late TextEditingController _salePriceController;
+  late TextEditingController _qtyController;
   double _profit = 0.0;
+  int _sellQty = 1;
 
   @override
   void initState() {
@@ -22,24 +24,25 @@ class _SellItemSheetState extends State<SellItemSheet> {
     _salePriceController = TextEditingController(
       text: widget.item.price.toInt().toString(),
     );
+    _qtyController = TextEditingController(text: "1");
     _calculateProfit();
   }
 
   void _calculateProfit() {
     double salePrice = double.tryParse(_salePriceController.text) ?? 0.0;
     setState(() {
-      _profit = salePrice - widget.item.price;
+      _profit = (salePrice - widget.item.price) * _sellQty;
     });
   }
 
   void _confirmSell() {
     final double salePrice =
         double.tryParse(_salePriceController.text) ?? widget.item.price;
-    final double profit = salePrice - widget.item.price;
+    final double profit = (salePrice - widget.item.price) * _sellQty;
 
-    if (widget.item.stock > 0) {
+    if (widget.item.stock >= _sellQty) {
       // 1. Decrease Stock
-      widget.item.stock--;
+      widget.item.stock -= _sellQty;
       DataStore().updateInventoryItem(widget.item);
 
       // 2. Save Item to History
@@ -47,7 +50,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'itemId': widget.item.id,
         'name': widget.item.name,
-        'qty': 1, // <--- YEH LINE ADD KI HAI (Zaroori)
+        'qty': _sellQty,
         'price': salePrice,
         'actualPrice': widget.item.price,
         'profit': profit,
@@ -60,10 +63,14 @@ class _SellItemSheetState extends State<SellItemSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Sold for Rs ${Formatter.formatCurrency(salePrice)} (Profit: Rs ${Formatter.formatCurrency(profit)})",
+            "Sold $_sellQty items for Rs ${Formatter.formatCurrency(salePrice * _sellQty)} (Profit: Rs ${Formatter.formatCurrency(profit)})",
           ),
           backgroundColor: Colors.green,
         ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Not enough stock available!")),
       );
     }
   }
@@ -150,6 +157,74 @@ class _SellItemSheetState extends State<SellItemSheet> {
             ),
           ),
           const SizedBox(height: 16),
+          
+          // === QUANTITY SELECTOR ===
+          const Text(
+            "Select Quantity",
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              IconButton(
+                onPressed: _sellQty > 1 ? () {
+                  setState(() {
+                    _sellQty--;
+                    _qtyController.text = _sellQty.toString();
+                  });
+                  _calculateProfit();
+                } : null,
+                icon: const Icon(Icons.remove_circle_outline, size: 32, color: Colors.red),
+              ),
+              Container(
+                width: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _qtyController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  onChanged: (val) {
+                    int? newQty = int.tryParse(val);
+                    if (newQty != null) {
+                      if (newQty > widget.item.stock) {
+                        newQty = widget.item.stock;
+                        _qtyController.text = newQty.toString();
+                      }
+                      setState(() {
+                        _sellQty = newQty!;
+                      });
+                      _calculateProfit();
+                    }
+                  },
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _sellQty < widget.item.stock ? () {
+                  setState(() {
+                    _sellQty++;
+                    _qtyController.text = _sellQty.toString();
+                  });
+                  _calculateProfit();
+                } : null,
+                icon: const Icon(Icons.add_circle_outline, size: 32, color: Colors.green),
+              ),
+              const Spacer(),
+              Text(
+                "Max: ${widget.item.stock}",
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           TextField(
             controller: _salePriceController,
             keyboardType: TextInputType.number,
@@ -160,7 +235,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
               color: Colors.black,
             ),
             decoration: InputDecoration(
-              labelText: "Sale Price (Selling Rate)",
+              labelText: "Sale Price (Per Item)",
               labelStyle: const TextStyle(color: Colors.blue),
               prefixText: "Rs ",
               filled: true,

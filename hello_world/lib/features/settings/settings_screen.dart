@@ -1,4 +1,7 @@
 // lib/features/settings/settings_screen.dart
+import 'dart:io';
+import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import '../../data/repositories/data_store.dart';
 import '../splash/splash_screen.dart'; // For Logout
@@ -27,6 +30,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _onDataChange() {
     if (mounted) setState(() {});
+  }
+
+  // === PROTECTIVE PASSCODE DIALOG ===
+  Future<bool> _verifyPasscode() async {
+    String enteredPasscode = "";
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline, color: Colors.orange),
+            SizedBox(width: 10),
+            Text("Admin Access"),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Please enter your admin passcode to proceed with this sensitive action.",
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 10),
+              decoration: const InputDecoration(
+                hintText: "••••",
+                counterText: "",
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (val) => enteredPasscode = val,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Default Passcode: 1234
+              if (enteredPasscode == "1234") {
+                Navigator.pop(context, true);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Incorrect Passcode! ❌"), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text("VERIFY"),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   // === FUNCTIONS ===
@@ -113,77 +176,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // 2. BACKUP (Enhanced Simulation)
+
+  // 2. BACKUP (SAVE TO ACCESSIBLE FILE)
   void _startBackup() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Column(
+    if (!await _verifyPasscode()) return;
+
+    try {
+      final backupData = DataStore().generateBackupPayload();
+      final jsonString = jsonEncode(backupData);
+      
+      // Try External Storage first for visibility, fallback to Internal
+      Directory? directory = await getExternalStorageDirectory();
+      directory ??= await getApplicationDocumentsDirectory();
+      
+      final file = File('${directory.path}/crockery_backup.json');
+      await file.writeAsString(jsonString);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Backup Successful! 💾"),
+            content: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircularProgressIndicator(color: Colors.blue),
-                SizedBox(height: 20),
-                Text("Creating Secure Backup..."),
+                const Text("Data saved as a hidden system file for security."),
+                const SizedBox(height: 10),
+                const Text("PATH:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                SelectableText(
+                  file.path,
+                  style: const TextStyle(fontSize: 10, color: Colors.blue),
+                ),
+                const SizedBox(height: 15),
+                const Text(
+                  "To Restore on New Phone:\n1. Copy this file to the SAME path on new phone.\n2. Click 'Import Data'.",
+                  style: TextStyle(fontSize: 12),
+                ),
               ],
             ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("CLOSE")),
+            ],
           ),
-        ),
-      ),
-    );
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Backup Successful! All records synced to cloud."),
-          backgroundColor: Colors.blue,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Backup Failed: $e")));
     }
   }
 
-  // 3. RESTORE
-  void _restoreData() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Restore Records?"),
-        content: const Text(
-          "Importing backup will merge or replace current data. Are you sure?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+  // 3. IMPORT BACKUP (FROM ACCESSIBLE FILE)
+  void _importBackup() async {
+    if (!await _verifyPasscode()) return;
+
+    try {
+      Directory? directory = await getExternalStorageDirectory();
+      directory ??= await getApplicationDocumentsDirectory();
+      
+      final file = File('${directory.path}/crockery_backup.json');
+
+      if (!await file.exists()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No backup file found in Documents!")),
+        );
+        return;
+      }
+
+      final jsonString = await file.readAsString();
+      final Map<String, dynamic> data = jsonDecode(jsonString);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Restore Data?"),
+            content: const Text("This will replace all current data. Are you sure?"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await DataStore().restoreFromBackup(data);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Data Restored Successfully! ✅"), backgroundColor: Colors.green),
+                  );
+                },
+                child: const Text("RESTORE"),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Data Sync Complete! Records Restored."),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text(
-              "PROCEED",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Restore Failed: $e")));
+    }
   }
 
-  // 4. CLEAR DATA
-  void _clearAllData() {
+  // 4. CLEAR DATA (With Passcode)
+  void _clearAllData() async {
+    if (!await _verifyPasscode()) return;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -338,18 +431,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader("Data Management"),
 
             _buildSettingsTile(
-              Icons.cloud_upload_rounded,
-              "Cloud Backup",
-              "Sync all data to secure server",
+              Icons.save_alt_rounded,
+              "Export Local Backup",
+              "Save all data to a file",
               onTap: _startBackup,
             ),
 
             _buildSettingsTile(
-              Icons.history_rounded,
-              "Restore Points",
-              "Recover data from previous backups",
-              onTap: _restoreData,
+              Icons.upload_file_rounded,
+              "Import Data",
+              "Restore from backup file",
+              onTap: _importBackup,
             ),
+
 
             _buildSettingsTile(
               Icons.delete_sweep_rounded,

@@ -15,6 +15,70 @@ class DataStore extends ChangeNotifier {
   Box get _historyBox => Hive.box('historyBox');
   Box get _settingsBox => Hive.box('settingsBox');
 
+  // === BACKUP LOGIC (REAL DATA) ===
+  Map<String, dynamic> generateBackupPayload() {
+    return {
+      'backup_date': DateTime.now().toIso8601String(),
+      'shop_name': shopName,
+      'owner_name': ownerName,
+      'phone': phone,
+      'address': address,
+      'inventory_count': _inventoryBox.length,
+      'inventory': _inventoryBox.values.map((item) => {
+        'id': item.id,
+        'name': item.name,
+        'price': item.price,
+        'stock': item.stock,
+        'description': item.description,
+        'embeddings': item.embeddings, // Full data for new phone
+      }).toList(),
+      'history': _historyBox.values.toList(),
+      'expenses': _expensesBox.values.toList(),
+    };
+  }
+
+  Future<void> restoreFromBackup(Map<String, dynamic> data) async {
+    // 1. Clear current boxes
+    await _inventoryBox.clear();
+    await _historyBox.clear();
+    await _expensesBox.clear();
+
+    // 2. Restore Inventory
+    final List<dynamic> inv = data['inventory'] ?? [];
+    for (var itemData in inv) {
+      final item = InventoryItem(
+        id: itemData['id'],
+        name: itemData['name'],
+        price: (itemData['price'] as num).toDouble(),
+        stock: (itemData['stock'] as num).toInt(),
+        description: itemData['description'],
+        embeddings: (itemData['embeddings'] as List).map((e) => (e as List).map((v) => (v as num).toDouble()).toList()).toList(),
+      );
+      await _inventoryBox.put(item.id, item);
+    }
+
+    // 3. Restore History & Expenses
+    final List<dynamic> hist = data['history'] ?? [];
+    for (var h in hist) {
+      await _historyBox.add(Map<String, dynamic>.from(h));
+    }
+
+    final List<dynamic> exp = data['expenses'] ?? [];
+    for (var e in exp) {
+      await _expensesBox.add(Map<String, dynamic>.from(e));
+    }
+
+    // 4. Restore Profile
+    await updateProfile(
+      data['owner_name'] ?? ownerName,
+      data['shop_name'] ?? shopName,
+      data['phone'] ?? phone,
+      data['address'] ?? address,
+    );
+
+    notifyListeners();
+  }
+
   // === 1. INVENTORY ===
   List<InventoryItem> get inventory => _inventoryBox.values.toList();
 
@@ -187,46 +251,55 @@ class DataStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // === FIX: SAFE REFUND LOGIC ===
-  void refundSale(Map<String, dynamic> historyItem) {
+  // === FIX: SAFE REFUND LOGIC (Supports Partial) ===
+  void refundSale(Map<String, dynamic> historyItem, {int? refundQty}) {
     if (historyItem['status'] == "Refunded") return;
 
-    // 1. Status Update
-    Map<String, dynamic> updatedItem = Map.from(historyItem);
-    updatedItem['status'] = "Refunded";
-    _historyBox.put(updatedItem['id'], updatedItem);
+    int totalQty = int.tryParse(historyItem['qty']?.toString() ?? "1") ?? 1;
+    int qtyToRefund = refundQty ?? totalQty;
+    if (qtyToRefund > totalQty) qtyToRefund = totalQty;
 
-    // 2. Stock Restore (Safe Mode)
-    String? itemId = historyItem['itemId'];
+    if (qtyToRefund < totalQty) {
+      // 1. Partial Refund: Update original to show remaining items
+      int remainingQty = totalQty - qtyToRefund;
+      Map<String, dynamic> soldPart = Map.from(historyItem);
+      soldPart['qty'] = remainingQty;
+      
+      double unitPrice = Formatter.parseDouble(historyItem['price'].toString());
+      double actualPrice = Formatter.parseDouble(historyItem['actualPrice']?.toString() ?? historyItem['price'].toString());
+      soldPart['profit'] = (unitPrice - actualPrice) * remainingQty;
+      _historyBox.put(soldPart['id'], soldPart);
 
-    // FIX: Agar qty null ho to 1 maano
-    int qtyToRestore = 1;
-    if (historyItem['qty'] != null) {
-      qtyToRestore = int.tryParse(historyItem['qty'].toString()) ?? 1;
+      // 2. Create new record for the refunded part
+      Map<String, dynamic> refundPart = Map.from(historyItem);
+      refundPart['id'] = "${historyItem['id']}_ref_${DateTime.now().millisecondsSinceEpoch}";
+      refundPart['qty'] = qtyToRefund;
+      refundPart['status'] = "Refunded";
+      refundPart['profit'] = 0.0;
+      _historyBox.put(refundPart['id'], refundPart);
+    } else {
+      // Full Refund
+      Map<String, dynamic> updatedItem = Map.from(historyItem);
+      updatedItem['status'] = "Refunded";
+      updatedItem['profit'] = 0.0;
+      _historyBox.put(updatedItem['id'], updatedItem);
     }
 
+    // 3. Stock Restore logic
+    String? itemId = historyItem['itemId'];
     if (itemId != null) {
       try {
-        final inventoryItem = _inventoryBox.values.firstWhere(
-          (i) => i.id == itemId,
-        );
-        inventoryItem.stock += qtyToRestore;
-        inventoryItem
-            .save(); // Yeh save hotay hi Dashboard par "Total Value" update ho jayegi
-        print("Stock Restored: +$qtyToRestore");
+        final inventoryItem = _inventoryBox.values.firstWhere((i) => i.id == itemId);
+        inventoryItem.stock += qtyToRefund;
+        inventoryItem.save();
       } catch (e) {
-        // Agar ID se item na miley (Deleted item), to Name se try karein (Fallback)
+        // Fallback to name
         try {
-          final fallbackItem = _inventoryBox.values.firstWhere(
-            (i) => i.name == historyItem['name'],
-          );
-          fallbackItem.stock += qtyToRestore;
+          final fallbackItem = _inventoryBox.values.firstWhere((i) => i.name == historyItem['name']);
+          fallbackItem.stock += qtyToRefund;
           fallbackItem.save();
-          print("Stock Restored via Name Match");
         } catch (e2) {
-          print(
-            "Item not found in inventory. Refund marked but stock not updated.",
-          );
+          print("Stock restore failed: $e2");
         }
       }
     }
@@ -258,9 +331,11 @@ class DataStore extends ChangeNotifier {
       double dayItemProfit = 0.0;
       
       for (var item in _validHistory) {
-        DateTime itemDate = DateTime.fromMillisecondsSinceEpoch(int.parse(item['id']));
+        DateTime itemDate = _parseHistoryDate(item);
         if (_isSameDay(date, itemDate)) {
-          daySales += Formatter.parseDouble(item['price'].toString());
+          double price = Formatter.parseDouble(item['price'].toString());
+          int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
+          daySales += (price * qty);
           dayItemProfit += Formatter.parseDouble(item['profit'].toString());
         }
       }
@@ -288,9 +363,11 @@ class DataStore extends ChangeNotifier {
       double periodExpenses = 0.0;
 
       for (var item in _validHistory) {
-        DateTime d = DateTime.fromMillisecondsSinceEpoch(int.parse(item['id']));
+        DateTime d = _parseHistoryDate(item);
         if (d.isAfter(start) && d.isBefore(end)) {
-          periodSales += Formatter.parseDouble(item['price'].toString());
+          double price = Formatter.parseDouble(item['price'].toString());
+          int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
+          periodSales += (price * qty);
           periodItemProfit += Formatter.parseDouble(item['profit'].toString());
         }
       }
@@ -321,9 +398,11 @@ class DataStore extends ChangeNotifier {
       double monthExpenses = 0.0;
 
       for (var item in _validHistory) {
-        DateTime d = DateTime.fromMillisecondsSinceEpoch(int.parse(item['id']));
+        DateTime d = _parseHistoryDate(item);
         if (d.year == currentYear && d.month == m) {
-          monthSales += Formatter.parseDouble(item['price'].toString());
+          double price = Formatter.parseDouble(item['price'].toString());
+          int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
+          monthSales += (price * qty);
           monthItemProfit += Formatter.parseDouble(item['profit'].toString());
         }
       }
@@ -345,13 +424,21 @@ class DataStore extends ChangeNotifier {
 
   String _getWeekdayName(int day) => ["M", "T", "W", "T", "F", "S", "S"][day - 1];
 
+  DateTime _parseHistoryDate(Map<String, dynamic> item) {
+    if (item['date'] != null) {
+      return DateTime.tryParse(item['date'].toString()) ?? 
+             DateTime.fromMillisecondsSinceEpoch(int.tryParse(item['id'] ?? "0") ?? 0);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(int.tryParse(item['id'] ?? "0") ?? 0);
+  }
+
   // === 5. PROFILE SETTINGS ===
   String get shopName => _settingsBox.get('shopName', defaultValue: "RIAZ AHMAD CROCKERY");
   String get ownerName => _settingsBox.get('ownerName', defaultValue: "Riaz Ahmad");
   String get phone => _settingsBox.get('phone', defaultValue: "+92 3195910091");
   String get address => _settingsBox.get('address', defaultValue: "Jehangira Underpass Shop#21");
 
-  void updateProfile(String name, String shop, String phone, String address) {
+  Future<void> updateProfile(String name, String shop, String phone, String address) async {
     _settingsBox.put('ownerName', name);
     _settingsBox.put('shopName', shop);
     _settingsBox.put('phone', phone);
