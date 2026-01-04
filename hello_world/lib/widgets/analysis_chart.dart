@@ -1,11 +1,17 @@
-// lib/widgets/analysis_chart.dart
 import 'package:flutter/material.dart';
+import '../utils/formatting.dart';
+import 'dart:math'; // Max value nikalne ke liye
 
 class AnalysisChart extends StatefulWidget {
   final String title;
-  final List<String> labels;
+  // Ab hum pura data map pass karenge
+  final Map<String, dynamic> chartData;
 
-  const AnalysisChart({super.key, required this.title, required this.labels});
+  const AnalysisChart({
+    super.key,
+    required this.title,
+    required this.chartData, // <--- Changed
+  });
 
   @override
   State<AnalysisChart> createState() => _AnalysisChartState();
@@ -15,70 +21,38 @@ class _AnalysisChartState extends State<AnalysisChart> {
   String _selectedView = "Sales";
   int? touchedIndex;
 
-  // === DATA LOGIC ===
-  List<double> get currentData {
-    bool isWeekly = widget.labels.length == 7;
-    // Data values 0.0 se 1.0 ke darmiyan hone chahiye
-    if (_selectedView == "Sales") {
-      return isWeekly
-          ? [0.4, 0.6, 0.8, 0.5, 0.9, 0.7, 0.4]
-          : [0.5, 0.7, 0.9, 0.6];
-    } else if (_selectedView == "Profit") {
-      return isWeekly
-          ? [0.2, 0.4, 0.6, 0.3, 0.7, 0.5, 0.2]
-          : [0.3, 0.5, 0.8, 0.4];
-    } else {
-      // EXPENSES
-      return isWeekly
-          ? [0.2, 0.1, 0.3, 0.4, 0.2, 0.1, 0.5]
-          : [0.4, 0.3, 0.5, 0.2];
-    }
-  }
-
-  List<String> get currentValues {
-    bool isWeekly = widget.labels.length == 7;
-    if (_selectedView == "Sales") {
-      return isWeekly
-          ? ["5k", "8k", "12k", "6k", "15k", "9k", "5k"]
-          : ["50k", "80k", "95k", "60k"];
-    } else if (_selectedView == "Profit") {
-      return isWeekly
-          ? ["2k", "4k", "7k", "3k", "9k", "5k", "2k"]
-          : ["15k", "25k", "40k", "20k"];
-    } else {
-      return isWeekly
-          ? ["3k", "2k", "4k", "5k", "3k", "2k", "1k"]
-          : ["35k", "55k", "45k", "40k"];
-    }
-  }
-
-  Color get currentColor {
-    if (_selectedView == "Sales") return Colors.blue;
-    if (_selectedView == "Profit") return Colors.green;
-    return Colors.red;
-  }
-
-  String get totalAmount {
-    if (_selectedView == "Sales") return "Rs 124,000";
-    if (_selectedView == "Profit") return "Rs 32,500";
-    return "Rs 45,200";
-  }
-
   @override
   Widget build(BuildContext context) {
-    final data = currentData;
-    final values = currentValues;
-    Color barColor = currentColor;
+    // Data nikalna
+    List<String> labels = widget.chartData['labels'] ?? [];
+    List<double> rawValues = widget.chartData[_selectedView] ?? [];
 
+    // Graph ki height adjust karna (Normalization)
+    // Sabse bari value dhundo taake graph us hisaab se scale ho
+    double maxValue = rawValues.reduce(max);
+    if (maxValue == 0) maxValue = 1; // Divide by zero se bachne ke liye
+
+    // Total Amount Calculate karna
+    double totalSum = rawValues.fold(0, (p, c) => p + c);
+    String totalAmountStr = "Rs ${Formatter.formatCurrency(totalSum)}";
+
+    // Current Display Logic
     String displayAmount =
-        (touchedIndex != null && touchedIndex! < values.length)
-        ? "Rs ${values[touchedIndex!]}"
-        : totalAmount;
+        (touchedIndex != null && touchedIndex! < rawValues.length)
+        ? "Rs ${Formatter.formatCurrency(rawValues[touchedIndex!])}"
+        : totalAmountStr;
 
     String displayLabel =
-        (touchedIndex != null && touchedIndex! < widget.labels.length)
-        ? "${widget.labels[touchedIndex!]} ${_selectedView}"
-        : "TOTAL ${_selectedView.toUpperCase()}";
+        (touchedIndex != null && touchedIndex! < labels.length)
+        ? "${labels[touchedIndex!]} ${_selectedView}"
+        : "TOTAL ${_selectedView.toUpperCase()} (Last 7 Days)";
+
+    // Color Selection
+    Color barColor = _selectedView == "Sales"
+        ? Colors.blue
+        : _selectedView == "Profit"
+        ? Colors.green
+        : Colors.red;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -96,7 +70,7 @@ class _AnalysisChartState extends State<AnalysisChart> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // === HEADER (Fix Right Overflow) ===
+          // === HEADER ===
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -109,8 +83,7 @@ class _AnalysisChartState extends State<AnalysisChart> {
                   letterSpacing: 1.5,
                 ),
               ),
-              const SizedBox(width: 10), // Gap
-              // FIX: Flexible + ScrollView lagaya taake buttons katein nahi
+              const SizedBox(width: 10),
               Flexible(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -135,63 +108,14 @@ class _AnalysisChartState extends State<AnalysisChart> {
           ),
           const SizedBox(height: 20),
 
-          // === AMOUNT ===
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Text(
-                  displayAmount,
-                  key: ValueKey<String>(displayAmount),
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              if (touchedIndex == null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    color: _selectedView == "Expenses"
-                        ? Colors.red[50]
-                        : Colors.green[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _selectedView == "Expenses"
-                            ? Icons.arrow_upward
-                            : Icons.trending_up,
-                        color: _selectedView == "Expenses"
-                            ? Colors.red
-                            : Colors.green,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _selectedView == "Expenses" ? "+5%" : "+12%",
-                        style: TextStyle(
-                          color: _selectedView == "Expenses"
-                              ? Colors.red
-                              : Colors.green,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+          // === AMOUNT DISPLAY ===
+          Text(
+            displayAmount,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
+            ),
           ),
           Text(
             displayLabel,
@@ -203,17 +127,21 @@ class _AnalysisChartState extends State<AnalysisChart> {
           ),
           const SizedBox(height: 30),
 
-          // === BARS (Fix Bottom Overflow) ===
-          // FIX: Height badha di 150 -> 180 taake text ko jagah miley
+          // === BARS ===
           SizedBox(
             height: 180,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(data.length, (index) {
+              children: List.generate(rawValues.length, (index) {
                 bool isTouched = touchedIndex == index;
-                // FIX: Bar ki max height control ki (140) taake text ke liye 40px bachein
-                double barHeight = 140 * data[index];
+
+                // === REAL LOGIC ===
+                // Value ko 140px ki height mein fit karna
+                double percentage = rawValues[index] / maxValue;
+                double barHeight = 140 * percentage;
+                if (barHeight < 5)
+                  barHeight = 5; // Minimum height taake bar dikhayi de
 
                 return GestureDetector(
                   onTapDown: (_) => setState(() => touchedIndex = index),
@@ -226,7 +154,7 @@ class _AnalysisChartState extends State<AnalysisChart> {
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeOut,
                         width: isTouched ? 16 : 12,
-                        height: barHeight, // Controlled Height
+                        height: barHeight,
                         decoration: BoxDecoration(
                           color: isTouched
                               ? barColor.withOpacity(1.0)
@@ -236,9 +164,7 @@ class _AnalysisChartState extends State<AnalysisChart> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        index < widget.labels.length
-                            ? widget.labels[index]
-                            : "",
+                        index < labels.length ? labels[index] : "",
                         style: TextStyle(
                           color: isTouched ? Colors.black : Colors.grey,
                           fontWeight: isTouched
@@ -261,11 +187,7 @@ class _AnalysisChartState extends State<AnalysisChart> {
   Widget _buildToggleButton(String text) {
     bool isActive = _selectedView == text;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedView = text;
-        });
-      },
+      onTap: () => setState(() => _selectedView = text),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

@@ -1,4 +1,3 @@
-// lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 import '../widgets/filter_buttons.dart';
 import '../widgets/overview_card.dart';
@@ -16,11 +15,13 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  String _filter = "Monthly";
+  // Default filter logic
+  String _filter = "Weekly";
 
   @override
   void initState() {
     super.initState();
+    // Data change hone par screen refresh karein
     DataStore().addListener(_onDataChange);
   }
 
@@ -34,31 +35,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {});
   }
 
-  // Chart Data Logic
-  Map<String, dynamic> get currentChartData {
-    if (_filter == "Weekly") {
-      return {
-        "chartTitle": "Weekly Overview", // Title generic kar diya
-        "labels": ["M", "T", "W", "T", "F", "S", "S"],
-      };
-    } else if (_filter == "Annual") {
-      return {
-        "chartTitle": "Annual Overview",
-        "labels": ["Q1", "Q2", "Q3", "Q4"],
-      };
-    } else {
-      // Monthly
-      return {
-        "chartTitle": "Monthly Overview",
-        "labels": ["W1", "W2", "W3", "W4"],
-      };
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final chartData = currentChartData;
+    // 1. Calculate Total Stock Value (Real Data)
     double totalStockValue = DataStore().getTotalStockValue();
+
+    // 2. Get Analytics Data (Real Data from History & Expenses)
+    // Filhal humne 'Weekly' logic banayi hai DataStore mein.
+    // Aap is variable ko filter ke hisaab se change kar sakte hain future mein.
+    final analyticsData = DataStore().getWeeklyAnalytics();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -94,7 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "RIAZ AHMAD CROKERY",
+                  "RIAZ AHMAD CROCKERY",
                   style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.w900,
@@ -134,6 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // === FILTER BUTTONS ===
                 FilterButtons(
                   selectedFilter: _filter,
                   onFilterChanged: (newFilter) {
@@ -148,20 +134,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // === FIXED STOCK CARD (Blue) ===
                 OverviewCard(
                   title: "TOTAL STOCK VALUE",
-                  amount: "Rs ${Formatter.formatCurrency(totalStockValue)}", // DYNAMIC
+                  amount:
+                      "Rs ${Formatter.formatCurrency(totalStockValue)}", // DYNAMIC
                   icon: Icons.inventory_2,
                 ),
 
                 const SizedBox(height: 20),
 
+                // === ALERT CARD (Low Stock) ===
                 const AlertCard(),
 
                 const SizedBox(height: 20),
 
                 // === ALL-IN-ONE ANALYTICS CARD (Sales, Profit, Expense) ===
+                // Updated to accept 'chartData' map
                 AnalysisChart(
-                  title: chartData['chartTitle'],
-                  labels: chartData['labels'],
+                  title: "$_filter Overview",
+                  chartData: analyticsData, // <--- Passing Real Data Here
                 ),
 
                 const SizedBox(height: 40),

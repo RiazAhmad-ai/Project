@@ -1,10 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mockito/mockito.dart';
 import 'package:hello_world/data/data_store.dart';
 import 'package:hello_world/data/inventory_model.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 // Mock Hive boxes or use in-memory Hive
 // Since we can't easily mock Hive static methods without heavy setup,
@@ -26,10 +23,10 @@ void main() {
     */
 
     test('Formatter parses double correctly', () {
-       // We can test utilities at least
-       // Importing Formatter? It's private in DataStore or in utils/formatting.dart
-       // Let's assume we can test public behavior via DataStore if possible,
-       // but DataStore depends on Hive.
+      // We can test utilities at least
+      // Importing Formatter? It's private in DataStore or in utils/formatting.dart
+      // Let's assume we can test public behavior via DataStore if possible,
+      // but DataStore depends on Hive.
     });
   });
 }

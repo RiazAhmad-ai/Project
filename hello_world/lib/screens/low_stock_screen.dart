@@ -1,7 +1,6 @@
 // lib/screens/low_stock_screen.dart
 import 'package:flutter/material.dart';
 import '../data/data_store.dart';
-import '../utils/formatting.dart';
 
 class LowStockScreen extends StatefulWidget {
   const LowStockScreen({super.key});

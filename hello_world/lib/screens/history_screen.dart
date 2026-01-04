@@ -1,6 +1,6 @@
-// lib/screens/history_screen.dart
 import 'package:flutter/material.dart';
 import '../data/data_store.dart';
+import '../utils/formatting.dart'; // Formatter ke liye agar zaroorat ho
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -11,7 +11,7 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   // 1. STATE VARIABLES
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = DateTime.now(); // By default Aaj ki date
   String _searchQuery = "";
 
   @override
@@ -27,7 +27,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _onDataChange() {
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   // === FUNCTIONS ===
@@ -48,9 +48,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.red,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
+              primary: Colors.red, // Header background color
+              onPrimary: Colors.white, // Header text color
+              onSurface: Colors.black, // Body text color
             ),
           ),
           child: child!,
@@ -62,23 +62,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
       setState(() {
         _selectedDate = picked;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Showing History for: ${_formatDate(picked)}")),
-      );
     }
   }
 
-  String _formatDate(DateTime date) {
-    return "${date.day}/${date.month}/${date.year}";
+  // Helper to safely get Date Object
+  DateTime _parseDate(dynamic dateVal) {
+    if (dateVal == null) return DateTime.now();
+    if (dateVal is DateTime) return dateVal;
+    return DateTime.tryParse(dateVal.toString()) ?? DateTime.now();
+  }
+
+  // Check if two dates are the same day
+  bool _isSameDay(DateTime d1, DateTime d2) {
+    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
   }
 
   // Edit Dialog
   void _showEditDialog(Map<String, dynamic> item) {
     TextEditingController priceController = TextEditingController(
-      text: item['price'].toString(),
+      text: item['price']?.toString() ?? "0",
     );
     TextEditingController qtyController = TextEditingController(
-      text: item['qty'].toString(),
+      text: item['qty']?.toString() ?? "1",
     );
 
     showDialog(
@@ -117,10 +122,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-               Map<String, dynamic> updatedItem = Map.from(item);
-               updatedItem['price'] = priceController.text;
-               updatedItem['qty'] = qtyController.text;
-               DataStore().updateHistoryItem(item['id'], updatedItem);
+              Map<String, dynamic> updatedItem = Map.from(item);
+              updatedItem['price'] = priceController.text;
+              updatedItem['qty'] = qtyController.text;
+              DataStore().updateHistoryItem(item['id'], updatedItem);
 
               Navigator.pop(context);
               ScaffoldMessenger.of(
@@ -138,24 +143,54 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // === UI BUILD ===
   @override
   Widget build(BuildContext context) {
+    // 1. Logic to Filter List by Date AND Search Query
     final filteredList = DataStore().historyItems.where((item) {
-      return item['item'].toString().toLowerCase().contains(
+      // Step A: Check Date
+      DateTime itemDate = _parseDate(item['date']);
+      bool dateMatches = _isSameDay(itemDate, _selectedDate);
+
+      // Step B: Check Search Text
+      final name = item['name'] ?? item['item'] ?? "";
+      bool searchMatches = name.toString().toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
+
+      // Dono conditions true honi chahiye
+      return dateMatches && searchMatches;
     }).toList();
+
+    // Formatting date for display
+    String displayDate =
+        "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Sales History",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Sales History",
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+            ),
+            Text(
+              "Showing: $displayDate", // Batayega ke kis date ki history hai
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.black),
+            icon: const Icon(
+              Icons.calendar_month,
+              color: Colors.red,
+            ), // Red color highlight
             onPressed: _pickDate,
           ),
           const SizedBox(width: 10),
@@ -174,7 +209,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: "Search receipt or item...",
+                hintText: "Search item name...",
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 filled: true,
                 fillColor: Colors.grey[100],
@@ -186,62 +221,70 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
 
-          // List
+          // List or Empty Message
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredList.length,
-              itemBuilder: (context, index) {
-                final item = filteredList[index];
-
-                bool showHeader = true;
-                if (index > 0 &&
-                    filteredList[index - 1]['date'] == item['date']) {
-                  showHeader = false;
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showHeader) _buildDateHeader(item['date']),
-                    _buildHistoryCard(item),
-                  ],
-                );
-              },
-            ),
+            child: filteredList.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.history_toggle_off,
+                          size: 80,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Iss date par koi history nahi hai.",
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = DateTime.now(); // Reset to Today
+                            });
+                          },
+                          child: const Text("Go to Today"),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredList.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredList[index];
+                      // Date Header ki zaroorat nahi kyunki hum ek waqt mein ek hi din dikha rahe hain
+                      return _buildHistoryCard(item, _selectedDate);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // Helper Widgets
-  Widget _buildDateHeader(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Text(
-            text.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              color: Colors.grey,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Divider(color: Colors.grey[300])),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoryCard(Map<String, dynamic> item) {
+  Widget _buildHistoryCard(Map<String, dynamic> item, DateTime dt) {
     bool isRefund = item['status'] == "Refunded";
 
+    // === SAFE DATA EXTRACTION ===
+    String itemName = item['name'] ?? item['item'] ?? "Unknown Item";
+    String qty = item['qty']?.toString() ?? "1";
+    String price = item['price']?.toString() ?? "0";
+    String actualPrice = item['actualPrice']?.toString() ?? "0"; // New Logic
+    String profit = item['profit']?.toString() ?? "0"; // New Logic
+
+    // Time Formatting
+    DateTime itemTime = _parseDate(item['date']);
+    String timeStr =
+        "${itemTime.hour}:${itemTime.minute.toString().padLeft(2, '0')}";
+
     return Dismissible(
-      key: Key(item['id']),
+      key: Key(item['id'] ?? DateTime.now().toString()),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         return await showDialog(
@@ -294,10 +337,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ],
         ),
-        // === STACK IMPLEMENTATION (For Corner Ribbon) ===
         child: Stack(
           children: [
-            // 1. Content Row
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -321,21 +362,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          item['item'],
+                          itemName,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        // Wrap hata diya, simple Row text
                         Text(
-                          "${item['qty']} x Items   •   ${item['time']}",
+                          "$qty x Items   •   $timeStr",
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 12,
                           ),
                         ),
+                        // Agar profit data hai to wo bhi dikha dein (Optional)
+                        if (double.tryParse(profit) != null &&
+                            double.parse(profit) != 0)
+                          Text(
+                            "Profit: Rs $profit",
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -344,7 +395,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        "Rs ${item['price']}",
+                        "Rs $price",
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 16,
@@ -378,10 +429,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     ),
                                     title: const Text("Mark as Refund (Wapis)"),
                                     onTap: () {
-                                       Map<String, dynamic> updatedItem = Map.from(item);
-                                       updatedItem['status'] = "Refunded";
-                                       DataStore().updateHistoryItem(item['id'], updatedItem);
-
+                                      Map<String, dynamic> updatedItem =
+                                          Map.from(item);
+                                      updatedItem['status'] = "Refunded";
+                                      DataStore().updateHistoryItem(
+                                        item['id'],
+                                        updatedItem,
+                                      );
                                       Navigator.pop(context);
                                     },
                                   ),
@@ -400,8 +454,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               ),
             ),
-
-            // 2. Refund Ribbon (Top Left Corner)
             if (isRefund)
               Positioned(
                 top: 0,
@@ -424,7 +476,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
                     ),
                   ),
                 ),

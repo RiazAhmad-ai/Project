@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../data/inventory_model.dart'; // Database Model
-import '../data/data_store.dart'; // For History
+import '../data/inventory_model.dart';
+import '../data/data_store.dart';
+import '../utils/formatting.dart';
 
 class SellItemSheet extends StatefulWidget {
-  final InventoryItem item; // Jo item bechna hai wo yahan aayega
+  final InventoryItem item;
 
   const SellItemSheet({super.key, required this.item});
 
@@ -12,263 +13,224 @@ class SellItemSheet extends StatefulWidget {
 }
 
 class _SellItemSheetState extends State<SellItemSheet> {
-  int _qty = 1;
-  late double _finalPrice;
+  late TextEditingController _salePriceController;
+  double _profit = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _finalPrice = widget.item.price; // Shuru mein price 1 item ki hogi
+    // Shuru mein Sale Price wahi hogi jo Inventory Price hai
+    _salePriceController = TextEditingController(
+      text: widget.item.price.toInt().toString(),
+    );
+    _calculateProfit();
   }
 
-  void _updatePrice(String qtyStr) {
+  void _calculateProfit() {
+    double salePrice = double.tryParse(_salePriceController.text) ?? 0.0;
     setState(() {
-      _qty = int.tryParse(qtyStr) ?? 1;
-      _finalPrice = widget.item.price * _qty;
+      _profit = salePrice - widget.item.price;
     });
   }
 
-  void _confirmSale() {
-    // 1. Check karein stock hai ya nahi
-    if (widget.item.stock < _qty) {
+  void _confirmSell() {
+    final double salePrice =
+        double.tryParse(_salePriceController.text) ?? widget.item.price;
+    final double profit = salePrice - widget.item.price;
+
+    // 1. Update Stock
+    if (widget.item.stock > 0) {
+      widget.item.stock--;
+      DataStore().updateInventoryItem(widget.item);
+
+      // 2. Add to History
+      DataStore().addHistoryItem({
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'itemId': widget.item.id,
+        'name': widget.item.name,
+        'price': salePrice, // Woh price jo customer ne di
+        'actualPrice': widget.item.price, // Asal khareed
+        'profit': profit, // Munafa
+        'status': 'Sold',
+        'date': DateTime.now().toIso8601String(),
+      });
+
+      Navigator.pop(context); // Close sheet
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("❌ Stock khatam ho gaya hai!"),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: Text(
+            "Sold for Rs ${Formatter.formatCurrency(salePrice)} (Profit: Rs ${Formatter.formatCurrency(profit)})",
+          ),
+          backgroundColor: Colors.green,
         ),
       );
-      return;
     }
-
-    // 2. Stock Update Karein (Minus)
-    setState(() {
-      widget.item.stock = widget.item.stock - _qty;
-    });
-
-    // 3. Database mein Save Karein (Hamesha ke liye)
-    widget.item.save();
-
-    // 4. History mein Record Karein
-    final now = DateTime.now();
-    final timeStr = "${now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour)}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}";
-    final dateStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
-    DataStore().addHistoryItem({
-      "item": widget.item.name,
-      "qty": _qty.toString(),
-      "price": _finalPrice.toStringAsFixed(0),
-      "time": timeStr,
-      "date": dateStr, // Using ISO date for sorting/filtering in DataStore but kept as string
-      "status": "Completed",
-    });
-
-    // 5. Band karein aur success dikhayein
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("✅ Sold ${_qty}x ${widget.item.name}! Stock Updated."),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 20,
-        right: 20,
-        top: 20,
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          const SizedBox(height: 20),
-
           // Header
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Row(
             children: [
-              Text(
-                "ITEM MIL GAYA!",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.shopping_cart_checkout,
+                  color: Colors.red,
+                ),
               ),
-              Icon(Icons.check_circle, color: Colors.green, size: 28),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.item.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "Stock Remaining: ${widget.item.stock}",
+                    style: TextStyle(
+                      color: widget.item.stock < 5 ? Colors.red : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // Item Details Card (Dynamic Data)
+          // === ACTUAL PRICE (Read Only) ===
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                const Text(
+                  "Actual Price (Khareed)",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: const Icon(Icons.inventory_2, color: Colors.blue),
                 ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.item.name, // <-- Asli Naam
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      "Stock Available: ${widget.item.stock}", // <-- Asli Stock
-                      style: TextStyle(
-                        color: widget.item.stock < 5 ? Colors.red : Colors.grey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
                 Text(
-                  "Rs ${widget.item.price.toStringAsFixed(0)}", // <-- Asli Price
+                  "Rs ${Formatter.formatCurrency(widget.item.price)}",
                   style: const TextStyle(
-                    fontWeight: FontWeight.w900,
                     fontSize: 16,
-                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
 
-          // Qty Inputs
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "QTY",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    TextFormField(
-                      initialValue: "1",
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      onChanged:
-                          _updatePrice, // <-- Type karte hi price update hogi
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 20,
-                      ),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "FINAL BILL",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 15,
-                        horizontal: 15,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        "Rs ${_finalPrice.toStringAsFixed(0)}", // <-- Total Bill
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 20,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 16),
 
-          // SELL BUTTON
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _confirmSale, // <-- Button dabane par stock minus hoga
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
+          // === SALE PRICE (Editable) ===
+          TextField(
+            controller: _salePriceController,
+            keyboardType: TextInputType.number,
+            onChanged: (val) => _calculateProfit(),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+            decoration: InputDecoration(
+              labelText: "Sale Price (Bechne ki Qeemat)",
+              labelStyle: const TextStyle(color: Colors.blue),
+              prefixText: "Rs ",
+              filled: true,
+              fillColor: Colors.blue[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_cart_checkout, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text(
-                    "CONFIRM SALE",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.blue, width: 2),
               ),
             ),
           ),
-          const SizedBox(height: 20),
+
+          const SizedBox(height: 12),
+
+          // === PROFIT DISPLAY ===
+          if (_profit != 0)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _profit > 0 ? Colors.green[50] : Colors.red[50],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _profit > 0
+                      ? "Profit: +Rs ${Formatter.formatCurrency(_profit)}"
+                      : "Loss: -Rs ${Formatter.formatCurrency(_profit.abs())}",
+                  style: TextStyle(
+                    color: _profit > 0 ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 24),
+
+          // === SELL BUTTON ===
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: widget.item.stock > 0 ? _confirmSell : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                "CONFIRM SELL",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
         ],
       ),
     );
