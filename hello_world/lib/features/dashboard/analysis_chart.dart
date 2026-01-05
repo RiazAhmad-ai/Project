@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../shared/utils/formatting.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import 'dart:math'; // Max value nikalne ke liye
 
 class AnalysisChart extends StatefulWidget {
@@ -51,10 +53,10 @@ class _AnalysisChartState extends State<AnalysisChart> {
 
     // Color Selection
     Color barColor = _selectedView == "Sales"
-        ? Colors.blue
+        ? AppColors.accent
         : _selectedView == "Profit"
-        ? Colors.green
-        : Colors.red;
+        ? AppColors.success
+        : AppColors.error;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -78,10 +80,8 @@ class _AnalysisChartState extends State<AnalysisChart> {
             children: [
               Text(
                 widget.title.toUpperCase(),
-                style: const TextStyle(
+                style: AppTextStyles.label.copyWith(
                   color: Colors.grey,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
                 ),
               ),
@@ -113,19 +113,11 @@ class _AnalysisChartState extends State<AnalysisChart> {
           // === AMOUNT DISPLAY ===
           Text(
             displayAmount,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              color: Colors.black,
-            ),
+            style: AppTextStyles.h1.copyWith(fontSize: 32),
           ),
           Text(
             displayLabel,
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTextStyles.label,
           ),
           const SizedBox(height: 30),
 
@@ -223,16 +215,16 @@ class _AnalysisChartState extends State<AnalysisChart> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           "$label Summary",
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: AppTextStyles.h3,
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildDetailRow("Total Sales", s, Colors.blue),
+            _buildDetailRow("Total Sales", s, AppColors.accent),
             const Divider(),
-            _buildDetailRow("Net Profit", p, Colors.green),
+            _buildDetailRow("Net Profit", p, AppColors.success),
             const Divider(),
-            _buildDetailRow("Expenses", e, Colors.red),
+            _buildDetailRow("Expenses", e, AppColors.error),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(12),
@@ -246,9 +238,9 @@ class _AnalysisChartState extends State<AnalysisChart> {
                   const Text("Take Home:", style: TextStyle(fontWeight: FontWeight.bold)),
                   Text(
                     "Rs ${Formatter.formatCurrency(p - e)}",
-                    style: TextStyle(
+                    style: AppTextStyles.bodyLarge.copyWith(
                       fontWeight: FontWeight.w900,
-                      color: (p - e) >= 0 ? Colors.green[700] : Colors.red[700],
+                      color: (p - e) >= 0 ? AppColors.success : AppColors.error,
                     ),
                   ),
                 ],

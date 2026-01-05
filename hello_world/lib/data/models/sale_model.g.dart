@@ -1,47 +1,56 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'inventory_model.dart';
+part of 'sale_model.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
+class SaleRecordAdapter extends TypeAdapter<SaleRecord> {
   @override
-  final int typeId = 0;
+  final int typeId = 1;
 
   @override
-  InventoryItem read(BinaryReader reader) {
+  SaleRecord read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return InventoryItem(
+    return SaleRecord(
       id: fields[0] as String,
-      name: fields[1] as String,
-      price: fields[2] as double,
-      stock: fields[3] as int,
-      description: fields[4] as String?,
-      barcode: fields[6] as String,
+      itemId: fields[1] as String,
+      name: fields[2] as String,
+      price: fields[3] as double,
+      actualPrice: fields[4] as double,
+      qty: fields[5] as int,
+      profit: fields[6] as double,
+      date: fields[7] as DateTime,
+      status: fields[8] as String,
     );
   }
 
   @override
-  void write(BinaryWriter writer, InventoryItem obj) {
+  void write(BinaryWriter writer, SaleRecord obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.name)
+      ..write(obj.itemId)
       ..writeByte(2)
-      ..write(obj.price)
+      ..write(obj.name)
       ..writeByte(3)
-      ..write(obj.stock)
+      ..write(obj.price)
       ..writeByte(4)
-      ..write(obj.description)
+      ..write(obj.actualPrice)
+      ..writeByte(5)
+      ..write(obj.qty)
       ..writeByte(6)
-      ..write(obj.barcode);
+      ..write(obj.profit)
+      ..writeByte(7)
+      ..write(obj.date)
+      ..writeByte(8)
+      ..write(obj.status);
   }
 
   @override
@@ -50,7 +59,7 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is InventoryItemAdapter &&
+      other is SaleRecordAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

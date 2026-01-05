@@ -1,0 +1,45 @@
+import 'package:hive/hive.dart';
+
+part 'sale_model.g.dart';
+
+@HiveType(typeId: 1)
+class SaleRecord extends HiveObject {
+  @HiveField(0)
+  late String id;
+
+  @HiveField(1)
+  late String itemId;
+
+  @HiveField(2)
+  late String name;
+
+  @HiveField(3)
+  late double price;
+
+  @HiveField(4)
+  late double actualPrice;
+
+  @HiveField(5)
+  late int qty;
+
+  @HiveField(6)
+  late double profit;
+
+  @HiveField(7)
+  late DateTime date;
+
+  @HiveField(8)
+  late String status; // 'Sold', 'Refunded'
+
+  SaleRecord({
+    required this.id,
+    required this.itemId,
+    required this.name,
+    required this.price,
+    required this.actualPrice,
+    required this.qty,
+    required this.profit,
+    required this.date,
+    this.status = 'Sold',
+  });
+}

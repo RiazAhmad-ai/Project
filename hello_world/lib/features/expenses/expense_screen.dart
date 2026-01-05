@@ -2,7 +2,11 @@
 import 'package:flutter/material.dart';
 import 'add_expense_sheet.dart';
 import '../../data/repositories/data_store.dart';
+import '../../data/models/expense_model.dart';
 import '../../shared/utils/formatting.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/services/reporting_service.dart';
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -36,21 +40,24 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   // === FUNCTIONS ===
 
   void _deleteItem(String id) {
-    DataStore().deleteExpense(id); // Simplified delete
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Expense Deleted")));
+    DataStore().deleteExpense(id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Expense Deleted"),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // === EDIT FEATURE ===
-  void _showEditSheet(Map<String, String> item) {
+  void _showEditSheet(ExpenseItem item) {
     TextEditingController amountController = TextEditingController(
-      text: item['amount'],
+      text: item.amount.toString(),
     );
     TextEditingController titleController = TextEditingController(
-      text: item['title'],
+      text: item.title,
     );
-    String currentCategory = item['category'] ?? "Extra";
+    String currentCategory = item.category;
 
     showModalBottomSheet(
       context: context,
@@ -174,17 +181,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        Map<String, String> updatedItem = Map.from(item);
-                        updatedItem['amount'] = amountController.text;
-                        updatedItem['title'] = titleController.text;
-                        updatedItem['category'] = currentCategory;
+                        item.amount = double.tryParse(amountController.text) ?? item.amount;
+                        item.title = titleController.text;
+                        item.category = currentCategory;
 
-                        DataStore().updateExpense(item['id']!, updatedItem);
+                        DataStore().updateExpense(item);
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text("Expense Updated!"),
-                            backgroundColor: Colors.blue,
+                            backgroundColor: AppColors.accent,
+                            behavior: SnackBarBehavior.floating,
                           ),
                         );
                       },
@@ -212,13 +219,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   }
 
   // === FILTERING ===
-  List<Map<String, String>> _getFilteredList(
-    List<Map<String, String>> originalList,
-  ) {
+  List<ExpenseItem> _getFilteredList(List<ExpenseItem> originalList) {
     if (_selectedCategory == "All") return originalList;
-    return originalList
-        .where((item) => item['category'] == _selectedCategory)
-        .toList();
+    return originalList.where((item) => item.category == _selectedCategory).toList();
   }
 
   Future<void> _pickDate() async {
@@ -263,15 +266,27 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     bool isToday = _formatDate(DateTime.now()) == displayDate;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
+        title: Text(
           "Expenses Manager",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+          style: AppTextStyles.h2,
         ),
         actions: [
+          IconButton(
+            onPressed: () => ReportingService.generateExpenseReport(
+              shopName: DataStore().shopName,
+              expenses: _getFilteredList(DataStore().getExpensesForDate(_selectedDate)),
+              date: _selectedDate,
+            ),
+            icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent),
+          ),
+          IconButton(
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_month, color: AppColors.accent),
+          ),
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(4),
@@ -423,42 +438,40 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     );
   }
 
-  Widget _buildSwipeableItem(Map<String, String> item) {
+  Widget _buildSwipeableItem(ExpenseItem item) {
     return Dismissible(
-      key: Key(item['id']!),
+      key: Key(item.id),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text("Delete Expense?"),
-            content: const Text("Confirm delete?"),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text("Delete Expense?", style: AppTextStyles.h3),
+            content: const Text("Are you sure you want to delete this expense?"),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text("Cancel"),
+                child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  "DELETE",
-                  style: TextStyle(color: Colors.red),
-                ),
+                child: const Text("DELETE", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         );
       },
-      onDismissed: (_) => _deleteItem(item['id']!),
+      onDismissed: (_) => _deleteItem(item.id),
       background: Container(
         margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.red[100],
+          color: AppColors.error.withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.red),
+        child: const Icon(Icons.delete_outline, color: AppColors.error),
       ),
       child: GestureDetector(
         onTap: () => _showEditSheet(item),
@@ -470,7 +483,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -481,10 +494,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: AppColors.accent.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.edit, color: Colors.blue, size: 18),
+                child: const Icon(Icons.edit_note, color: AppColors.accent, size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -492,29 +505,19 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item['title']!,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                      item.title,
+                      style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      item['category']!,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      item.category,
+                      style: AppTextStyles.label,
                     ),
                   ],
                 ),
               ),
               Text(
-                "Rs ${item['amount']!}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
+                "Rs ${Formatter.formatCurrency(item.amount)}",
+                style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w900, color: AppColors.error),
               ),
             ],
           ),

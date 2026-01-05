@@ -1,5 +1,7 @@
 // lib/features/dashboard/overview_card.dart
 import 'package:flutter/material.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class OverviewCard extends StatefulWidget {
   final String title;
@@ -29,10 +31,9 @@ class _OverviewCardState extends State<OverviewCard> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          // Use custom colors if provided, otherwise default Dark Blue
           colors:
               widget.gradientColors ??
-              [const Color(0xFF1E293B), const Color(0xFF0F172A)],
+              [AppColors.secondary, const Color(0xFF0F172A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -56,10 +57,8 @@ class _OverviewCardState extends State<OverviewCard> {
                 children: [
                   Text(
                     widget.title.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white70, // Slightly clearer
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.label.copyWith(
+                      color: Colors.white70,
                       letterSpacing: 1.5,
                     ),
                   ),
@@ -97,11 +96,10 @@ class _OverviewCardState extends State<OverviewCard> {
             child: Text(
               _isBalanceVisible ? widget.amount : "Rs •••••••",
               key: ValueKey<bool>(_isBalanceVisible),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-              ),
+                style: AppTextStyles.h1.copyWith(
+                  color: Colors.white,
+                  fontSize: 32,
+                ),
             ),
           ),
         ],

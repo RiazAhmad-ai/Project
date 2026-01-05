@@ -2,6 +2,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:hello_world/data/models/inventory_model.dart';
+import 'package:hello_world/data/models/sale_model.dart';
+import 'package:hello_world/data/models/expense_model.dart';
 import '../../shared/utils/formatting.dart';
 
 class DataStore extends ChangeNotifier {
@@ -11,8 +13,8 @@ class DataStore extends ChangeNotifier {
 
   Box<InventoryItem> get _inventoryBox =>
       Hive.box<InventoryItem>('inventoryBox');
-  Box get _expensesBox => Hive.box('expensesBox');
-  Box get _historyBox => Hive.box('historyBox');
+  Box<ExpenseItem> get _expensesBox => Hive.box<ExpenseItem>('expensesBox');
+  Box<SaleRecord> get _historyBox => Hive.box<SaleRecord>('historyBox');
   Box get _settingsBox => Hive.box('settingsBox');
 
   // === BACKUP LOGIC (REAL DATA) ===
@@ -32,8 +34,24 @@ class DataStore extends ChangeNotifier {
         'description': item.description,
         'barcode': item.barcode,
       }).toList(),
-      'history': _historyBox.values.toList(),
-      'expenses': _expensesBox.values.toList(),
+      'history': _historyBox.values.map((h) => {
+        'id': h.id,
+        'itemId': h.itemId,
+        'name': h.name,
+        'price': h.price,
+        'actualPrice': h.actualPrice,
+        'qty': h.qty,
+        'profit': h.profit,
+        'date': h.date.toIso8601String(),
+        'status': h.status,
+      }).toList(),
+      'expenses': _expensesBox.values.map((e) => {
+        'id': e.id,
+        'title': e.title,
+        'amount': e.amount,
+        'date': e.date.toIso8601String(),
+        'category': e.category,
+      }).toList(),
     };
   }
 
@@ -60,12 +78,30 @@ class DataStore extends ChangeNotifier {
     // 3. Restore History & Expenses
     final List<dynamic> hist = data['history'] ?? [];
     for (var h in hist) {
-      await _historyBox.add(Map<String, dynamic>.from(h));
+      final sale = SaleRecord(
+        id: h['id'],
+        itemId: h['itemId'] ?? "",
+        name: h['name'],
+        price: (h['price'] as num).toDouble(),
+        actualPrice: (h['actualPrice'] as num).toDouble(),
+        qty: (h['qty'] as num).toInt(),
+        profit: (h['profit'] as num).toDouble(),
+        date: DateTime.tryParse(h['date']?.toString() ?? "") ?? DateTime.now(),
+        status: h['status'] ?? "Sold",
+      );
+      await _historyBox.put(sale.id, sale);
     }
 
     final List<dynamic> exp = data['expenses'] ?? [];
     for (var e in exp) {
-      await _expensesBox.add(Map<String, dynamic>.from(e));
+      final expense = ExpenseItem(
+        id: e['id'],
+        title: e['title'],
+        amount: (e['amount'] as num).toDouble(),
+        date: DateTime.tryParse(e['date']?.toString() ?? "") ?? DateTime.now(),
+        category: e['category'] ?? "General",
+      );
+      await _expensesBox.put(expense.id, expense);
     }
 
     // 4. Restore Profile
@@ -110,17 +146,10 @@ class DataStore extends ChangeNotifier {
   }
 
   // === 2. EXPENSES ===
-  List<Map<String, String>> get _allExpenses =>
-      _expensesBox.values.map((e) => Map<String, String>.from(e)).toList();
+  List<ExpenseItem> get _allExpenses => _expensesBox.values.toList();
 
-  List<Map<String, String>> getExpensesForDate(DateTime date) {
-    return _allExpenses.where((e) {
-      if (e['date'] == null) return false;
-      final eDate = DateTime.parse(e['date']!);
-      return date.year == eDate.year &&
-          date.month == eDate.month &&
-          date.day == eDate.day;
-    }).toList();
+  List<ExpenseItem> getExpensesForDate(DateTime date) {
+    return _allExpenses.where((e) => _isSameDay(date, e.date)).toList();
   }
 
 
@@ -129,39 +158,25 @@ class DataStore extends ChangeNotifier {
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   // Re-implementing logic correctly inside methods
-  List<Map<String, String>> get todayExpenses => _allExpenses
-      .where(
-        (e) =>
-            e['date'] != null &&
-            _isSameDay(DateTime.now(), DateTime.parse(e['date']!)),
-      )
+  List<ExpenseItem> get todayExpenses => _allExpenses
+      .where((e) => _isSameDay(DateTime.now(), e.date))
       .toList();
-  List<Map<String, String>> get yesterdayExpenses => _allExpenses
+  List<ExpenseItem> get yesterdayExpenses => _allExpenses
       .where(
-        (e) =>
-            e['date'] != null &&
-            _isSameDay(
-              DateTime.now().subtract(const Duration(days: 1)),
-              DateTime.parse(e['date']!),
-            ),
+        (e) => _isSameDay(
+          DateTime.now().subtract(const Duration(days: 1)),
+          e.date,
+        ),
       )
       .toList();
 
-  void addExpense(Map<String, String> expense, {bool isToday = true}) {
-    if (!expense.containsKey('date'))
-      expense['date'] =
-          (isToday
-                  ? DateTime.now()
-                  : DateTime.now().subtract(const Duration(days: 1)))
-              .toIso8601String();
-    if (!expense.containsKey('id'))
-      expense['id'] = DateTime.now().millisecondsSinceEpoch.toString();
-    _expensesBox.put(expense['id'], expense);
+  void addExpense(ExpenseItem expense) {
+    _expensesBox.put(expense.id, expense);
     notifyListeners();
   }
 
-  void updateExpense(String id, Map<String, String> newExpense) {
-    _expensesBox.put(id, newExpense);
+  void updateExpense(ExpenseItem expense) {
+    expense.save();
     notifyListeners();
   }
 
@@ -171,68 +186,43 @@ class DataStore extends ChangeNotifier {
   }
 
   double getTotalExpenses() {
-    return todayExpenses.fold(
-          0.0,
-          (sum, item) => sum + Formatter.parseDouble(item['amount'] ?? "0"),
-        ) +
-        yesterdayExpenses.fold(
-          0.0,
-          (sum, item) => sum + Formatter.parseDouble(item['amount'] ?? "0"),
-        );
+    return todayExpenses.fold(0.0, (sum, item) => sum + item.amount) +
+        yesterdayExpenses.fold(0.0, (sum, item) => sum + item.amount);
   }
 
   double getTotalExpensesForDate(DateTime date) {
-    var list = _allExpenses
-        .where(
-          (e) =>
-              e['date'] != null && _isSameDay(date, DateTime.parse(e['date']!)),
-        )
-        .toList();
-    return list.fold(
-      0.0,
-      (sum, item) => sum + Formatter.parseDouble(item['amount'] ?? "0"),
-    );
+    var list = _allExpenses.where((e) => _isSameDay(date, e.date)).toList();
+    return list.fold(0.0, (sum, item) => sum + item.amount);
   }
 
   // === 3. HISTORY & REFUND (FIXED) ===
-  List<Map<String, dynamic>> get historyItems {
-    var list = _historyBox.values
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-    list.sort((a, b) => (b['id'] ?? "").compareTo(a['id'] ?? ""));
+  List<SaleRecord> get historyItems {
+    var list = _historyBox.values.toList();
+    list.sort((a, b) => b.id.compareTo(a.id));
     return list;
   }
 
-  void addHistoryItem(Map<String, dynamic> item) {
-    if (!item.containsKey('id'))
-      item['id'] = DateTime.now().millisecondsSinceEpoch.toString();
-    _historyBox.put(item['id'], item);
+  void addHistoryItem(SaleRecord item) {
+    _historyBox.put(item.id, item);
     notifyListeners();
   }
 
-  void updateHistoryItem(Map<String, dynamic> oldItem, Map<String, dynamic> newData) {
-    final String id = oldItem['id'];
-    
+  void updateHistoryItem(SaleRecord oldItem, SaleRecord newData) {
     // 1. Calculate new Profit
-    double newPrice = Formatter.parseDouble(newData['price'].toString());
-    double actualPrice = Formatter.parseDouble(oldItem['actualPrice'].toString());
-    int newQty = int.tryParse(newData['qty'].toString()) ?? 1;
-    double newProfit = (newPrice - actualPrice) * newQty;
+    double newProfit = (newData.price - oldItem.actualPrice) * newData.qty;
 
-    // 2. Prepare updated map
-    Map<String, dynamic> updatedItem = Map.from(oldItem);
-    updatedItem['name'] = newData['name'];
-    updatedItem['price'] = newPrice;
-    updatedItem['qty'] = newQty;
-    updatedItem['profit'] = newProfit;
-    
+    // 2. Prepare updated data
+    oldItem.name = newData.name;
+    oldItem.price = newData.price;
+    oldItem.qty = newData.qty;
+    oldItem.profit = newProfit;
+
     // 3. Stock Adjustment
-    int oldQty = int.tryParse(oldItem['qty']?.toString() ?? "1") ?? 1;
-    int qtyDiff = oldQty - newQty; // If I sold 2 but now 1, I should add 1 back to stock
-    
-    if (qtyDiff != 0 && oldItem['itemId'] != null) {
+    int qtyDiff = oldItem.qty - newData.qty;
+
+    if (qtyDiff != 0 && oldItem.itemId.isNotEmpty) {
       try {
-        final invItem = _inventoryBox.values.firstWhere((i) => i.id == oldItem['itemId']);
+        final invItem = _inventoryBox.values.firstWhere((i) => i.id == oldItem.itemId);
         invItem.stock += qtyDiff;
         invItem.save();
       } catch (e) {
@@ -240,7 +230,7 @@ class DataStore extends ChangeNotifier {
       }
     }
 
-    _historyBox.put(id, updatedItem);
+    oldItem.save();
     notifyListeners();
   }
 
@@ -250,55 +240,48 @@ class DataStore extends ChangeNotifier {
   }
 
   // === FIX: SAFE REFUND LOGIC (Supports Partial) ===
-  void refundSale(Map<String, dynamic> historyItem, {int? refundQty}) {
-    if (historyItem['status'] == "Refunded") return;
+  void refundSale(SaleRecord historyItem, {int? refundQty}) {
+    if (historyItem.status == "Refunded") return;
 
-    int totalQty = int.tryParse(historyItem['qty']?.toString() ?? "1") ?? 1;
+    int totalQty = historyItem.qty;
     int qtyToRefund = refundQty ?? totalQty;
     if (qtyToRefund > totalQty) qtyToRefund = totalQty;
 
     if (qtyToRefund < totalQty) {
       // 1. Partial Refund: Update original to show remaining items
       int remainingQty = totalQty - qtyToRefund;
-      Map<String, dynamic> soldPart = Map.from(historyItem);
-      soldPart['qty'] = remainingQty;
-      
-      double unitPrice = Formatter.parseDouble(historyItem['price'].toString());
-      double actualPrice = Formatter.parseDouble(historyItem['actualPrice']?.toString() ?? historyItem['price'].toString());
-      soldPart['profit'] = (unitPrice - actualPrice) * remainingQty;
-      _historyBox.put(soldPart['id'], soldPart);
+      historyItem.qty = remainingQty;
+      historyItem.profit = (historyItem.price - historyItem.actualPrice) * remainingQty;
+      historyItem.save();
 
       // 2. Create new record for the refunded part
-      Map<String, dynamic> refundPart = Map.from(historyItem);
-      refundPart['id'] = "${historyItem['id']}_ref_${DateTime.now().millisecondsSinceEpoch}";
-      refundPart['qty'] = qtyToRefund;
-      refundPart['status'] = "Refunded";
-      refundPart['profit'] = 0.0;
-      _historyBox.put(refundPart['id'], refundPart);
+      final refundPart = SaleRecord(
+        id: "${historyItem.id}_ref_${DateTime.now().millisecondsSinceEpoch}",
+        itemId: historyItem.itemId,
+        name: historyItem.name,
+        price: historyItem.price,
+        actualPrice: historyItem.actualPrice,
+        qty: qtyToRefund,
+        profit: 0.0,
+        date: DateTime.now(),
+        status: "Refunded",
+      );
+      _historyBox.put(refundPart.id, refundPart);
     } else {
       // Full Refund
-      Map<String, dynamic> updatedItem = Map.from(historyItem);
-      updatedItem['status'] = "Refunded";
-      updatedItem['profit'] = 0.0;
-      _historyBox.put(updatedItem['id'], updatedItem);
+      historyItem.status = "Refunded";
+      historyItem.profit = 0.0;
+      historyItem.save();
     }
 
     // 3. Stock Restore logic
-    String? itemId = historyItem['itemId'];
-    if (itemId != null) {
+    if (historyItem.itemId.isNotEmpty) {
       try {
-        final inventoryItem = _inventoryBox.values.firstWhere((i) => i.id == itemId);
+        final inventoryItem = _inventoryBox.values.firstWhere((i) => i.id == historyItem.itemId);
         inventoryItem.stock += qtyToRefund;
         inventoryItem.save();
       } catch (e) {
-        // Fallback to name
-        try {
-          final fallbackItem = _inventoryBox.values.firstWhere((i) => i.name == historyItem['name']);
-          fallbackItem.stock += qtyToRefund;
-          fallbackItem.save();
-        } catch (e2) {
-          print("Stock restore failed: $e2");
-        }
+        print("Stock restore failed: $e");
       }
     }
 
@@ -310,11 +293,10 @@ class DataStore extends ChangeNotifier {
     if (type == "Weekly") return _getWeeklyData();
     if (type == "Monthly") return _getMonthlyData();
     if (type == "Annual") return _getAnnualData();
-    return _getWeeklyData(); // Default
+    return _getWeeklyData();
   }
 
-  // Helper to filter history by status
-  List<Map<String, dynamic>> get _validHistory => historyItems.where((h) => h['status'] != "Refunded").toList();
+  List<SaleRecord> get _validHistory => historyItems.where((h) => h.status != "Refunded").toList();
 
   Map<String, dynamic> _getWeeklyData() {
     List<double> sales = [], expenses = [], profit = [];
@@ -329,12 +311,9 @@ class DataStore extends ChangeNotifier {
       double dayItemProfit = 0.0;
       
       for (var item in _validHistory) {
-        DateTime itemDate = _parseHistoryDate(item);
-        if (_isSameDay(date, itemDate)) {
-          double price = Formatter.parseDouble(item['price'].toString());
-          int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
-          daySales += (price * qty);
-          dayItemProfit += Formatter.parseDouble(item['profit'].toString());
+        if (_isSameDay(date, item.date)) {
+          daySales += (item.price * item.qty);
+          dayItemProfit += item.profit;
         }
       }
 
@@ -361,19 +340,15 @@ class DataStore extends ChangeNotifier {
       double periodExpenses = 0.0;
 
       for (var item in _validHistory) {
-        DateTime d = _parseHistoryDate(item);
-        if (d.isAfter(start) && d.isBefore(end)) {
-          double price = Formatter.parseDouble(item['price'].toString());
-          int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
-          periodSales += (price * qty);
-          periodItemProfit += Formatter.parseDouble(item['profit'].toString());
+        if (item.date.isAfter(start) && item.date.isBefore(end)) {
+          periodSales += (item.price * item.qty);
+          periodItemProfit += item.profit;
         }
       }
 
       for (var exp in _allExpenses) {
-        DateTime d = DateTime.parse(exp['date']!);
-        if (d.isAfter(start) && d.isBefore(end)) {
-          periodExpenses += Formatter.parseDouble(exp['amount'] ?? "0");
+        if (exp.date.isAfter(start) && exp.date.isBefore(end)) {
+          periodExpenses += exp.amount;
         }
       }
 
@@ -396,19 +371,15 @@ class DataStore extends ChangeNotifier {
       double monthExpenses = 0.0;
 
       for (var item in _validHistory) {
-        DateTime d = _parseHistoryDate(item);
-        if (d.year == currentYear && d.month == m) {
-          double price = Formatter.parseDouble(item['price'].toString());
-          int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
-          monthSales += (price * qty);
-          monthItemProfit += Formatter.parseDouble(item['profit'].toString());
+        if (item.date.year == currentYear && item.date.month == m) {
+          monthSales += (item.price * item.qty);
+          monthItemProfit += item.profit;
         }
       }
 
       for (var exp in _allExpenses) {
-        DateTime d = DateTime.parse(exp['date']!);
-        if (d.year == currentYear && d.month == m) {
-          monthExpenses += Formatter.parseDouble(exp['amount'] ?? "0");
+        if (exp.date.year == currentYear && exp.date.month == m) {
+          monthExpenses += exp.amount;
         }
       }
 
@@ -421,14 +392,6 @@ class DataStore extends ChangeNotifier {
   }
 
   String _getWeekdayName(int day) => ["M", "T", "W", "T", "F", "S", "S"][day - 1];
-
-  DateTime _parseHistoryDate(Map<String, dynamic> item) {
-    if (item['date'] != null) {
-      return DateTime.tryParse(item['date'].toString()) ?? 
-             DateTime.fromMillisecondsSinceEpoch(int.tryParse(item['id'] ?? "0") ?? 0);
-    }
-    return DateTime.fromMillisecondsSinceEpoch(int.tryParse(item['id'] ?? "0") ?? 0);
-  }
 
   // === 5. PROFILE SETTINGS ===
   String get shopName => _settingsBox.get('shopName', defaultValue: "RIAZ AHMAD CROCKERY");

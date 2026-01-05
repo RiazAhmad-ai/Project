@@ -1,10 +1,12 @@
 // lib/features/settings/settings_screen.dart
 import 'dart:io';
 import 'dart:convert';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../data/repositories/data_store.dart';
-import '../splash/splash_screen.dart'; // For Logout
+import '../splash/splash_screen.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,19 +40,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool? result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.lock_outline, color: Colors.orange),
-            SizedBox(width: 10),
-            Text("Admin Access"),
+            const Icon(Icons.lock_outline, color: AppColors.accent),
+            const SizedBox(width: 10),
+            Text("Admin Access", style: AppTextStyles.h3),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               "Please enter your admin passcode to proceed with this sensitive action.",
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             TextField(
@@ -80,10 +82,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(context, true);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Incorrect Passcode! ❌"), backgroundColor: Colors.red),
+                  const SnackBar(
+                    content: Text("Incorrect Passcode! ❌"),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
             child: const Text("VERIFY"),
           ),
         ],
@@ -105,9 +112,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
+        title: Text(
           "Edit Business Profile",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: AppTextStyles.h3,
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -165,10 +172,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text("Profile Updated Successfully! ✅"),
-                  backgroundColor: Colors.green,
+                  backgroundColor: AppColors.success,
+                  behavior: SnackBarBehavior.floating,
                 ),
               );
             },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
             child: const Text("SAVE CHANGES"),
           ),
         ],
@@ -326,17 +335,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final store = DataStore();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           "Settings & Profile",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
+          style: AppTextStyles.h2,
         ),
       ),
       body: SingleChildScrollView(
@@ -478,18 +487,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ListTile(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 tileColor: Colors.white,
-                leading: const Icon(Icons.logout_rounded, color: Colors.orange),
-                title: const Text(
+                leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+                title: Text(
                   "Logout Session",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold),
                 ),
-                subtitle: const Text("Return to login screen", style: TextStyle(fontSize: 11)),
-                trailing: const Icon(Icons.chevron_right, size: 20),
+                subtitle: Text("Return to login screen", style: AppTextStyles.label),
+                trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
                 onTap: _logout,
               ),
             ),
 
             const SizedBox(height: 40),
+            const SizedBox(height: 10),
             Text(
               "Secure POS System for ${store.shopName}",
               style: const TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5),
@@ -507,10 +517,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Text(
         title.toUpperCase(),
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
+        style: AppTextStyles.label.copyWith(
+          color: AppColors.textSecondary,
           letterSpacing: 1.2,
         ),
       ),
@@ -535,22 +543,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isRed ? Colors.red[50] : Colors.grey[50],
+            color: isRed ? AppColors.error.withOpacity(0.1) : AppColors.background,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: isRed ? Colors.red : Colors.grey[700], size: 22),
+          child: Icon(icon, color: isRed ? AppColors.error : AppColors.textSecondary, size: 22),
         ),
         title: Text(
           title,
-          style: TextStyle(
-            color: isRed ? Colors.red : Colors.black87,
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: isRed ? AppColors.error : AppColors.textPrimary,
             fontWeight: FontWeight.bold,
-            fontSize: 14,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: AppTextStyles.label,
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
         onTap: onTap,

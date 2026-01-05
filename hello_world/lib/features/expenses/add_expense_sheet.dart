@@ -1,6 +1,9 @@
 // lib/features/expenses/add_expense_sheet.dart
 import 'package:flutter/material.dart';
 import '../../data/repositories/data_store.dart';
+import '../../data/models/expense_model.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class AddExpenseSheet extends StatefulWidget {
   const AddExpenseSheet({super.key});
@@ -40,14 +43,9 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           ),
           const SizedBox(height: 20),
 
-          const Text(
+          Text(
             "ADD NEW EXPENSE",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-              letterSpacing: 1,
-            ),
+            style: AppTextStyles.label.copyWith(letterSpacing: 1),
           ),
 
           const SizedBox(height: 20),
@@ -143,7 +141,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.red : Colors.grey[100],
+                      color: isSelected ? AppColors.primary : Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
                       border: isSelected
                           ? null
@@ -170,32 +168,39 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
             child: ElevatedButton(
               onPressed: () {
                 if (_amountController.text.isEmpty) {
-                   ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("Please enter amount!"),
-                      backgroundColor: Colors.red,
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
                     ),
                   );
                   return;
                 }
 
-                DataStore().addExpense({
-                  "id": DateTime.now().millisecondsSinceEpoch.toString(),
-                  "title": _descController.text.isEmpty ? selectedCategory : _descController.text,
-                  "category": selectedCategory,
-                  "amount": _amountController.text,
-                }, isToday: true);
+                final expense = ExpenseItem(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  title: _descController.text.isEmpty
+                      ? selectedCategory
+                      : _descController.text,
+                  amount: double.tryParse(_amountController.text) ?? 0.0,
+                  date: DateTime.now(),
+                  category: selectedCategory,
+                );
+
+                DataStore().addExpense(expense);
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text("Expense Added!"),
-                    backgroundColor: Colors.green,
+                    backgroundColor: AppColors.success,
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black, // Black button stylish lagta hai
+                backgroundColor: AppColors.secondary,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

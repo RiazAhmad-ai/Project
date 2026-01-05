@@ -1,8 +1,11 @@
 // lib/features/inventory/sell_item_sheet.dart
 import 'package:flutter/material.dart';
 import '../../data/models/inventory_model.dart';
+import '../../data/models/sale_model.dart';
 import '../../data/repositories/data_store.dart';
 import '../../shared/utils/formatting.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class SellItemSheet extends StatefulWidget {
   final InventoryItem item;
@@ -22,9 +25,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
   @override
   void initState() {
     super.initState();
-    _salePriceController = TextEditingController(
-      text: widget.item.price.toInt().toString(),
-    );
+    _salePriceController = TextEditingController(text: "");
     _qtyController = TextEditingController(text: "1");
     _calculateProfit();
   }
@@ -47,17 +48,18 @@ class _SellItemSheetState extends State<SellItemSheet> {
       DataStore().updateInventoryItem(widget.item);
 
       // 2. Save Item to History
-      DataStore().addHistoryItem({
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'itemId': widget.item.id,
-        'name': widget.item.name,
-        'qty': _sellQty,
-        'price': salePrice,
-        'actualPrice': widget.item.price,
-        'profit': profit,
-        'status': 'Sold',
-        'date': DateTime.now().toIso8601String(),
-      });
+      final sale = SaleRecord(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        itemId: widget.item.id,
+        name: widget.item.name,
+        price: salePrice,
+        actualPrice: widget.item.price,
+        qty: _sellQty,
+        profit: profit,
+        date: DateTime.now(),
+        status: 'Sold',
+      );
+      DataStore().addHistoryItem(sale);
 
       Navigator.pop(context);
 
@@ -66,7 +68,8 @@ class _SellItemSheetState extends State<SellItemSheet> {
           content: Text(
             "Sold $_sellQty items for Rs ${Formatter.formatCurrency(salePrice * _sellQty)} ✅",
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } else {
@@ -98,12 +101,12 @@ class _SellItemSheetState extends State<SellItemSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
+                  color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
                   Icons.shopping_cart_checkout,
-                  color: Colors.red,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 16),
@@ -228,31 +231,28 @@ class _SellItemSheetState extends State<SellItemSheet> {
 
           TextField(
             controller: _salePriceController,
+            autofocus: true,
             keyboardType: TextInputType.number,
             onChanged: (val) => _calculateProfit(),
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+            style: AppTextStyles.h2,
             decoration: InputDecoration(
               labelText: "Sale Price (Per Item)",
-              labelStyle: const TextStyle(color: Colors.blue),
+              labelStyle: TextStyle(color: AppColors.accent),
               prefixText: "Rs ",
               filled: true,
-              fillColor: Colors.blue[50],
+              fillColor: AppColors.accent.withOpacity(0.05),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.blue, width: 2),
+                borderSide: BorderSide(color: AppColors.accent, width: 2),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          if (_profit != 0)
+          if (_profit != 0 && _salePriceController.text.isNotEmpty)
             Align(
               alignment: Alignment.centerRight,
               child: Container(
@@ -282,7 +282,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
             child: ElevatedButton(
               onPressed: widget.item.stock > 0 ? _confirmSell : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
+                backgroundColor: AppColors.secondary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

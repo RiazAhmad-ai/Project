@@ -1,9 +1,9 @@
-// lib/features/inventory/add_item_sheet.dart
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../shared/widgets/full_scanner_screen.dart';
 import '../../data/models/inventory_model.dart';
 import '../../data/repositories/data_store.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class AddItemSheet extends StatefulWidget {
   const AddItemSheet({super.key});
@@ -23,39 +23,10 @@ class _AddItemSheetState extends State<AddItemSheet> {
 
   // === BARCODE SCANNER ===
   Future<void> _scanBarcode() async {
-    final String? barcode = await showDialog<String>(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text("Scan Barcode", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            ),
-            SizedBox(
-              height: 300,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: MobileScanner(
-                  onDetect: (capture) {
-                    final List<Barcode> barcodes = capture.barcodes;
-                    if (barcodes.isNotEmpty) {
-                      Navigator.pop(context, barcodes.first.rawValue);
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
+    final String? barcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FullScannerScreen(title: "Register Item"),
       ),
     );
 
@@ -98,7 +69,11 @@ class _AddItemSheetState extends State<AddItemSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Item Saved Successfully! ✅"), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text("Item Saved Successfully! ✅"),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
@@ -137,7 +112,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text("ADD NEW STOCK", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text("ADD NEW STOCK", style: AppTextStyles.h2),
             const SizedBox(height: 24),
 
             // Barcode Field with Scan Button
@@ -163,7 +138,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
                   child: Container(
                     height: 56,
                     width: 56,
-                    decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(16)),
                     child: const Icon(Icons.qr_code_scanner, color: Colors.white),
                   ),
                 ),
@@ -237,7 +212,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _saveItem,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
+                  backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 0,

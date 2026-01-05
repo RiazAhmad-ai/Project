@@ -7,6 +7,8 @@ import 'analysis_chart.dart';
 import '../settings/settings_screen.dart';
 import '../../data/repositories/data_store.dart';
 import '../../shared/utils/formatting.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -45,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final analyticsData = DataStore().getAnalytics(_filter);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -62,38 +64,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   height: 40,
                   width: 40,
                   decoration: BoxDecoration(
-                    color: Colors.red[50],
+                    color: AppColors.primary.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.storefront,
-                    color: Colors.red,
+                    color: AppColors.primary,
                     size: 24,
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  DataStore().shopName,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DataStore().shopName,
+                    style: AppTextStyles.h3.copyWith(fontSize: 15),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                ),
-                Text(
-                  DataStore().address,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                  Text(
+                    DataStore().address,
+                    style: AppTextStyles.label.copyWith(fontSize: 9),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

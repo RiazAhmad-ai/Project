@@ -1,8 +1,10 @@
 // lib/features/splash/splash_screen.dart
 import 'package:flutter/material.dart';
-import 'dart:async'; // Timer ke liye
-import '../main/main_screen.dart'; // Jahan jana hai
+import 'dart:async';
+import '../main/main_screen.dart';
 import '../../data/repositories/data_store.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -28,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -37,7 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.red[50], // Background circle
+                color: AppColors.primary.withOpacity(0.1), // Background circle
                 shape: BoxShape.circle,
               ),
               child: Image.asset(
@@ -46,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 height: 100,
                 fit: BoxFit.contain,
                 errorBuilder: (c, o, s) =>
-                    const Icon(Icons.storefront, size: 80, color: Colors.red),
+                    const Icon(Icons.storefront, size: 80, color: AppColors.primary),
               ),
             ),
 
@@ -55,12 +57,7 @@ class _SplashScreenState extends State<SplashScreen> {
             // 2. APP NAME
             Text(
               DataStore().shopName,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: Colors.black,
-                letterSpacing: 2,
-              ),
+              style: AppTextStyles.h1.copyWith(letterSpacing: 2),
             ),
 
             const SizedBox(height: 40),
@@ -72,9 +69,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 // Kinare Gol karne ke liye
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
-                  backgroundColor: Colors.red[100], // Halka peeche ka rang
-                  color: Colors.red, // Bhara hua rang
-                  minHeight: 6, // Line ki motayi
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary,
+                  minHeight: 6,
                 ),
               ),
             ),

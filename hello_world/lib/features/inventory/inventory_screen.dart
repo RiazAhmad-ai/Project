@@ -1,10 +1,13 @@
-// lib/features/inventory/inventory_screen.dart
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../shared/widgets/full_scanner_screen.dart';
 import '../../data/models/inventory_model.dart';
+import '../../data/repositories/data_store.dart';
+import '../../core/services/reporting_service.dart';
 import 'add_item_sheet.dart';
 import 'sell_item_sheet.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -32,39 +35,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   // === 2. BARCODE SEARCH & SELL ===
   Future<void> _scanForSearch() async {
-    final String? barcode = await showDialog<String>(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text("Scan Product Barcode", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            ),
-            SizedBox(
-              height: 300,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: MobileScanner(
-                  onDetect: (capture) {
-                    final List<Barcode> barcodes = capture.barcodes;
-                    if (barcodes.isNotEmpty) {
-                      Navigator.pop(context, barcodes.first.rawValue);
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
+    final String? barcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FullScannerScreen(title: "Inventory Search"),
       ),
     );
 
@@ -99,7 +73,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // === 3. DELETE ITEM ===
   void _deleteItem(InventoryItem item) {
     item.delete();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item Deleted")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Item Deleted"),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // === 4. EDIT ITEM SHEET ===
@@ -112,30 +91,33 @@ class _InventoryScreenState extends State<InventoryScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
-          left: 20,
-          right: 20,
+          top: 24,
+          left: 24,
+          right: 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("EDIT ITEM", style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
+            Text("EDIT ITEM", style: AppTextStyles.h2),
+            const SizedBox(height: 16),
             TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: "Barcode")),
             TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Name")),
             TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Price"), keyboardType: TextInputType.number),
             TextField(controller: stockCtrl, decoration: const InputDecoration(labelText: "Stock"), keyboardType: TextInputType.number),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
                       if (barcodeCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Barcode is required!")));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Barcode is required!"), behavior: SnackBarBehavior.floating),
+                        );
                         return;
                       }
                       item.name = nameCtrl.text;
@@ -145,37 +127,46 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       item.save();
                       Navigator.pop(context);
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                    child: const Text("UPDATE"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text("UPDATE", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 16),
                 IconButton(
                   onPressed: () {
                     showDialog(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text("Delete Item?"),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: Text("Delete Item?", style: AppTextStyles.h3),
                         content: const Text("This action cannot be undone."),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+                          ),
                           TextButton(
                             onPressed: () {
                               Navigator.pop(ctx);
                               Navigator.pop(context);
                               _deleteItem(item);
                             },
-                            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                            child: const Text("Delete", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
                     );
                   },
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -185,17 +176,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text("Stock Inventory", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: Text("Stock Inventory", style: AppTextStyles.h2),
         actions: [
           IconButton(
-            icon: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.add, color: Colors.white)),
+            icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
+            onPressed: () {
+              final items = Hive.box<InventoryItem>('inventoryBox').values.toList();
+              ReportingService.generateInventoryExcel(
+                shopName: DataStore().shopName,
+                items: items,
+              );
+            },
+          ),
+          IconButton(
+            icon: const CircleAvatar(backgroundColor: AppColors.accent, child: Icon(Icons.add, color: Colors.white)),
             onPressed: _addNewItemWithBarcode,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 16),
         ],
       ),
       body: Column(
@@ -224,7 +225,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onTap: _scanForSearch,
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(16)),
+                    decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(16)),
                     child: const Icon(Icons.qr_code_scanner, color: Colors.white),
                   ),
                 ),
@@ -260,20 +261,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         onTap: () => _showEditSheet(item),
                         leading: Container(
                           width: 50, height: 50,
-                          decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(12)),
-                          child: const Icon(Icons.inventory_2_outlined, color: Colors.blue),
+                          decoration: BoxDecoration(color: AppColors.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.inventory_2_outlined, color: AppColors.accent),
                         ),
-                        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("Rs ${item.price.toStringAsFixed(0)} | Code: ${item.barcode}"),
+                        title: Text(item.name, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
+                        subtitle: Text("Rs ${item.price.toStringAsFixed(0)} | Code: ${item.barcode}", style: AppTextStyles.bodySmall),
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: item.stock < 5 ? Colors.red[50] : Colors.green[50],
+                            color: item.stock < 5 ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             "${item.stock} Left",
-                            style: TextStyle(color: item.stock < 5 ? Colors.red : Colors.green, fontWeight: FontWeight.bold),
+                            style: AppTextStyles.label.copyWith(
+                              color: item.stock < 5 ? AppColors.error : AppColors.success,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

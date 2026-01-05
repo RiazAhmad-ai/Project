@@ -1,7 +1,11 @@
 // lib/features/history/history_screen.dart
 import 'package:flutter/material.dart';
 import '../../data/repositories/data_store.dart';
+import '../../data/models/sale_model.dart';
 import '../../shared/utils/formatting.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/services/reporting_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -49,15 +53,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // === ACTIONS ===
-  void _handleRefund(Map<String, dynamic> item) {
-    int totalQty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
+  void _handleRefund(SaleRecord item) {
+    int totalQty = item.qty;
     int refundQty = 1;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Process Refund"),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text("Process Refund", style: AppTextStyles.h2),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -68,35 +73,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
+                      icon: const Icon(Icons.remove_circle_outline, color: AppColors.error),
                       onPressed: refundQty > 1 ? () => setDialogState(() => refundQty--) : null,
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text("$refundQty", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      child: Text("$refundQty", style: AppTextStyles.h1),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
+                      icon: const Icon(Icons.add_circle_outline, color: AppColors.success),
                       onPressed: refundQty < totalQty ? () => setDialogState(() => refundQty++) : null,
                     ),
                   ],
                 )
               else
-                const Text("1 Item (Full Refund)", style: TextStyle(fontWeight: FontWeight.bold)),
+                Text("1 Item (Full Refund)", style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               onPressed: () {
                 DataStore().refundSale(item, refundQty: refundQty);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Refund of $refundQty item(s) processed! ✅")),
+                  SnackBar(
+                    content: Text("Refund of $refundQty item(s) processed! ✅"),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               },
-              child: const Text("CONFIRM REFUND"),
+              child: const Text("CONFIRM REFUND", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -108,31 +122,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Record?"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("Delete Record?", style: AppTextStyles.h3),
         content: const Text("Are you sure? This will remove the record permanently but will NOT restore stock."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Keep")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text("Keep", style: TextStyle(color: AppColors.textSecondary)),
+          ),
           TextButton(
             onPressed: () {
               DataStore().deleteHistoryItem(id);
               Navigator.pop(ctx);
             },
-            child: const Text("DELETE", style: TextStyle(color: Colors.red)),
+            child: const Text("DELETE", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  void _handleEdit(Map<String, dynamic> item) {
-    final nameCtrl = TextEditingController(text: item['name'] ?? item['item'] ?? "");
-    final priceCtrl = TextEditingController(text: item['price']?.toString() ?? "0");
-    final qtyCtrl = TextEditingController(text: (item['qty'] ?? 1).toString());
+  void _handleEdit(SaleRecord item) {
+    final nameCtrl = TextEditingController(text: item.name);
+    final priceCtrl = TextEditingController(text: item.price.toString());
+    final qtyCtrl = TextEditingController(text: item.qty.toString());
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Edit Sale Record"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text("Edit Sale Record", style: AppTextStyles.h3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -142,17 +161,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+          ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () {
-              DataStore().updateHistoryItem(item, {
-                'name': nameCtrl.text,
-                'price': priceCtrl.text,
-                'qty': qtyCtrl.text,
-              });
+              final updatedSale = SaleRecord(
+                id: item.id,
+                itemId: item.itemId,
+                name: nameCtrl.text,
+                price: double.tryParse(priceCtrl.text) ?? item.price,
+                actualPrice: item.actualPrice,
+                qty: int.tryParse(qtyCtrl.text) ?? item.qty,
+                profit: 0, // Recalculated in DataStore
+                date: item.date,
+                status: item.status,
+              );
+              DataStore().updateHistoryItem(item, updatedSale);
               Navigator.pop(context);
             },
-            child: const Text("Save"),
+            child: const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -164,12 +197,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final allHistory = DataStore().historyItems;
     
     // Filter logic
+    // Filter logic
     final filteredHistory = allHistory.where((item) {
-      final itemDate = _parseDate(item['date']);
-      final matchesDate = _isSameDay(itemDate, _selectedDate);
+      final matchesDate = _isSameDay(item.date, _selectedDate);
       
-      final name = (item['name'] ?? item['item'] ?? "").toString().toLowerCase();
-      final status = (item['status'] ?? "").toString().toLowerCase();
+      final name = item.name.toLowerCase();
+      final status = item.status.toLowerCase();
       final matchesSearch = name.contains(_searchQuery.toLowerCase()) || 
                             status.contains(_searchQuery.toLowerCase());
       
@@ -180,16 +213,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     double dayTotal = 0;
     double dayProfit = 0;
     for (var item in filteredHistory) {
-      if (item['status'] != "Refunded") {
-        double p = Formatter.parseDouble(item['price'].toString());
-        int q = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
-        dayTotal += (p * q);
-        dayProfit += Formatter.parseDouble(item['profit']?.toString() ?? "0");
+      if (item.status != "Refunded") {
+        dayTotal += (item.price * item.qty);
+        dayProfit += item.profit;
       }
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
           // 1. Sleek App Bar
@@ -198,24 +229,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
             floating: false,
             pinned: true,
             elevation: 0,
-            backgroundColor: Colors.red[700],
+            backgroundColor: AppColors.primary,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.red[800]!, Colors.red[600]!],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.primaryGradient,
                 ),
                 child: Padding(
                   padding: const EdgeInsets.only(top: 80, left: 24, right: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         "Sales History",
-                        style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold),
+                        style: AppTextStyles.label.copyWith(color: Colors.white70),
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -226,14 +253,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             children: [
                               Text(
                                 "Rs ${Formatter.formatCurrency(dayTotal)}",
-                                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900),
+                                style: AppTextStyles.h1.copyWith(color: Colors.white, fontSize: 28),
                               ),
                               Text(
                                 "Profit: Rs ${Formatter.formatCurrency(dayProfit)}",
-                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                                style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(0.8)),
                               ),
                             ],
                           ),
+                          IconButton(
+                            onPressed: () => ReportingService.generateSalesReport(
+                              shopName: DataStore().shopName,
+                              sales: filteredHistory,
+                              date: _selectedDate,
+                            ),
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
+                              child: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           IconButton(
                             onPressed: () async {
                               final picked = await showDatePicker(
@@ -241,6 +281,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 initialDate: _selectedDate,
                                 firstDate: DateTime(2022),
                                 lastDate: DateTime.now(),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: AppColors.primary,
+                                        onPrimary: Colors.white,
+                                        onSurface: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
                               if (picked != null) setState(() => _selectedDate = picked);
                             },
@@ -258,7 +310,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               title: Text(
                 _formatDateManual(_selectedDate),
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: AppTextStyles.h3.copyWith(color: Colors.white),
               ),
               centerTitle: false,
             ),
@@ -309,7 +361,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         return _HistoryItemCard(
                           item: item,
                           onRefund: () => _handleRefund(item),
-                          onDelete: () => _handleDelete(item['id']),
+                          onDelete: () => _handleDelete(item.id),
                           onEdit: () => _handleEdit(item),
                         );
                       },
@@ -326,7 +378,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 }
 
 class _HistoryItemCard extends StatelessWidget {
-  final Map<String, dynamic> item;
+  final SaleRecord item;
   final VoidCallback onRefund;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
@@ -340,11 +392,8 @@ class _HistoryItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isRefunded = item['status'] == "Refunded";
-    double price = Formatter.parseDouble(item['price'].toString());
-    int qty = int.tryParse(item['qty']?.toString() ?? "1") ?? 1;
-    double total = price * qty;
-    double profit = Formatter.parseDouble(item['profit']?.toString() ?? "0");
+    bool isRefunded = item.status == "Refunded";
+    double total = item.price * item.qty;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -352,7 +401,7 @@ class _HistoryItemCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: ClipRRect(
@@ -363,12 +412,12 @@ class _HistoryItemCard extends StatelessWidget {
             leading: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isRefunded ? Colors.red[50] : Colors.green[50],
+                color: isRefunded ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 isRefunded ? Icons.keyboard_return : Icons.shopping_bag_outlined,
-                color: isRefunded ? Colors.red : Colors.green,
+                color: isRefunded ? AppColors.error : AppColors.success,
                 size: 20,
               ),
             ),
@@ -376,10 +425,9 @@ class _HistoryItemCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    item['name'] ?? item['item'] ?? "Unknown",
-                    style: TextStyle(
+                    item.name,
+                    style: AppTextStyles.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
                       decoration: isRefunded ? TextDecoration.lineThrough : null,
                     ),
                   ),
@@ -387,14 +435,14 @@ class _HistoryItemCard extends StatelessWidget {
                 if (isRefunded)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(5)),
+                    decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(5)),
                     child: const Text("REFUNDED", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
                   ),
               ],
             ),
             subtitle: Text(
-              "$qty x Rs ${Formatter.formatCurrency(price)}",
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              "${item.qty} x Rs ${Formatter.formatCurrency(item.price)}",
+              style: AppTextStyles.bodySmall,
             ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -402,16 +450,15 @@ class _HistoryItemCard extends StatelessWidget {
               children: [
                 Text(
                   "Rs ${Formatter.formatCurrency(total)}",
-                  style: TextStyle(
+                  style: AppTextStyles.bodyLarge.copyWith(
                     fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                    color: isRefunded ? Colors.red : Colors.black,
+                    color: isRefunded ? AppColors.error : AppColors.textPrimary,
                   ),
                 ),
                 if (!isRefunded)
                   Text(
-                    profit >= 0 ? "+Rs ${Formatter.formatCurrency(profit)}" : "-Rs ${Formatter.formatCurrency(profit.abs())}",
-                    style: TextStyle(color: profit >= 0 ? Colors.green : Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
+                    item.profit >= 0 ? "+Rs ${Formatter.formatCurrency(item.profit)}" : "-Rs ${Formatter.formatCurrency(item.profit.abs())}",
+                    style: AppTextStyles.label.copyWith(color: item.profit >= 0 ? AppColors.success : AppColors.error),
                   ),
               ],
             ),
@@ -426,19 +473,19 @@ class _HistoryItemCard extends StatelessWidget {
                       _ActionButton(
                         icon: Icons.settings_backup_restore,
                         label: "REFUND",
-                        color: Colors.orange,
+                        color: AppColors.warning,
                         onTap: onRefund,
                       ),
                     _ActionButton(
                       icon: Icons.edit_outlined,
                       label: "EDIT",
-                      color: Colors.blue,
+                      color: AppColors.accent,
                       onTap: onEdit,
                     ),
                     _ActionButton(
                       icon: Icons.delete_outline,
                       label: "DELETE",
-                      color: Colors.red,
+                      color: AppColors.error,
                       onTap: onDelete,
                     ),
                   ],
