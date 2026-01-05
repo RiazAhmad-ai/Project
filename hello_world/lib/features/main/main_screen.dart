@@ -10,7 +10,9 @@ import '../../shared/widgets/full_scanner_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../cart/cart_screen.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:provider/provider.dart';
+import '../../providers/sales_provider.dart';
+import '../../providers/inventory_provider.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -47,9 +49,9 @@ class _MainScreenState extends State<MainScreen> {
     if (barcode == null) return;
 
     // Search for match in inventory
-    final box = Hive.box<InventoryItem>('inventoryBox');
-    try {
-      final match = box.values.firstWhere((item) => item.barcode == barcode);
+    final match = context.read<InventoryProvider>().findItemByBarcode(barcode);
+    
+    if (match != null) {
       
       if (!mounted) return;
       final result = await showModalBottomSheet<String>(
@@ -72,7 +74,7 @@ class _MainScreenState extends State<MainScreen> {
           MaterialPageRoute(builder: (context) => const CartScreen()),
         );
       }
-    } catch (e) {
+    } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -89,10 +91,9 @@ class _MainScreenState extends State<MainScreen> {
       body: _screens[_selectedIndex],
 
       // Floating Barcode Scanner Button
-      floatingActionButton: ListenableBuilder(
-        listenable: DataStore(),
-        builder: (context, _) {
-          final cartCount = DataStore().cart.length;
+      floatingActionButton: Builder(
+        builder: (context) {
+          final cartCount = context.watch<SalesProvider>().cart.length;
           return SizedBox(
             height: 65,
             width: 65,

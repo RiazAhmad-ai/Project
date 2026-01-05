@@ -3,13 +3,13 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:rsellx/providers/settings_provider.dart';
+import 'package:rsellx/providers/backup_provider.dart';
 import '../splash/splash_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../core/services/backup_service.dart';
 import '../../core/services/reporting_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,22 +24,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Listen to changes in DataStore
-    DataStore().addListener(_onDataChange);
   }
 
   @override
   void dispose() {
-    DataStore().removeListener(_onDataChange);
     super.dispose();
-  }
-
-  void _onDataChange() {
-    if (mounted) setState(() {});
   }
 
   // === PROTECTIVE PASSCODE DIALOG ===
   Future<bool> _verifyPasscode() async {
+    final settingsProvider = context.read<SettingsProvider>();
     String enteredPasscode = "";
     bool? result = await showDialog<bool>(
       context: context,
@@ -81,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (enteredPasscode == DataStore().adminPasscode) {
+              if (enteredPasscode == settingsProvider.adminPasscode) {
                 Navigator.pop(context, true);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -106,11 +100,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // 1. EDIT PROFILE DIALOG
   void _editProfile() {
-    final store = DataStore();
-    TextEditingController nameController = TextEditingController(text: store.ownerName);
-    TextEditingController shopController = TextEditingController(text: store.shopName);
-    TextEditingController phoneController = TextEditingController(text: store.phone);
-    TextEditingController addressController = TextEditingController(text: store.address);
+    final settingsProvider = context.read<SettingsProvider>();
+    TextEditingController nameController = TextEditingController(text: settingsProvider.ownerName);
+    TextEditingController shopController = TextEditingController(text: settingsProvider.shopName);
+    TextEditingController phoneController = TextEditingController(text: settingsProvider.phone);
+    TextEditingController addressController = TextEditingController(text: settingsProvider.address);
 
     showDialog(
       context: context,
@@ -165,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              store.updateProfile(
+              settingsProvider.updateProfile(
                 nameController.text,
                 shopController.text,
                 phoneController.text,
@@ -191,7 +185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // 1b. CHANGE PASSCODE DIALOG
   void _changePasscode() async {
     if (!await _verifyPasscode()) return;
-
+    final settingsProvider = context.read<SettingsProvider>();
     String newPasscode = "";
     String confirmPasscode = "";
 
@@ -231,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Passcodes do not match!")));
                 return;
               }
-              DataStore().updatePasscode(newPasscode);
+              settingsProvider.updatePasscode(newPasscode);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Passcode changed successfully! ✅"), backgroundColor: AppColors.success),
@@ -250,7 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _startBackup() async {
     if (!await _verifyPasscode()) return;
     try {
-      await BackupService.exportBackup();
+      await context.read<BackupProvider>().exportBackup();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Backup generated and shared! 💾"), backgroundColor: AppColors.success),
       );
@@ -263,7 +257,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _importBackup() async {
     if (!await _verifyPasscode()) return;
     try {
-       final success = await BackupService.importBackup();
+       final success = await context.read<BackupProvider>().importBackup();
        if (success && mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(content: Text("Data Restored Successfully! ✅"), backgroundColor: AppColors.success),
@@ -278,7 +272,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _importFromExcel() async {
     if (!await _verifyPasscode()) return;
     try {
-      final success = await ReportingService.importInventoryFromExcel();
+      final success = await context.read<BackupProvider>().importInventoryFromExcel();
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Inventory Imported from Excel! ✅"), backgroundColor: AppColors.success),
@@ -308,7 +302,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await DataStore().clearAllData();
+              await context.read<BackupProvider>().clearAllData();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -344,6 +338,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image == null) return;
 
+      final settingsProvider = context.read<SettingsProvider>();
+
       // Permanent Directoy main save karna
       final directory = await getApplicationDocumentsDirectory();
       final String fileName = 'shop_logo_${DateTime.now().millisecondsSinceEpoch}.png';
@@ -352,16 +348,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Copy the image
       await File(image.path).copy(logoFile.path);
 
-      await DataStore().updateProfile(
-        DataStore().ownerName,
-        DataStore().shopName,
-        DataStore().phone,
-        DataStore().address,
+      await settingsProvider.updateProfile(
+        settingsProvider.ownerName,
+        settingsProvider.shopName,
+        settingsProvider.phone,
+        settingsProvider.address,
         logo: logoFile.path,
       );
 
       if (mounted) {
-        setState(() {}); // Force local UI update
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Shop logo updated successfully! ✅")),
         );
@@ -377,7 +372,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = DataStore();
+    final settingsProvider = context.watch<SettingsProvider>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -423,11 +418,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       shape: BoxShape.circle,
                     ),
                   child: ClipOval(
-                    child: store.logoPath != null && File(store.logoPath!).existsSync()
+                    child: settingsProvider.logoPath != null && File(settingsProvider.logoPath!).existsSync()
                       ? Image.file(
-                          File(store.logoPath!),
+                          File(settingsProvider.logoPath!),
                           fit: BoxFit.cover,
-                          key: ValueKey(store.logoPath),
+                          key: ValueKey(settingsProvider.logoPath),
                         )
                       : Image.asset(
                           'assets/logo.png',
@@ -446,21 +441,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          store.shopName,
+                          settingsProvider.shopName,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          store.ownerName,
+                          settingsProvider.ownerName,
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 14,
                           ),
                         ),
                         Text(
-                          store.phone,
+                          settingsProvider.phone,
                           style: const TextStyle(
                             color: Colors.blueAccent,
                             fontSize: 12,
@@ -492,17 +487,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSettingsTile(
               Icons.image_outlined,
               "Change Shop Logo",
-              DataStore().logoPath != null ? "Custom logo is set" : "Using default logo",
+              settingsProvider.logoPath != null ? "Custom logo is set" : "Using default logo",
               onTap: _pickLogo,
-              trailing: DataStore().logoPath != null 
+              trailing: settingsProvider.logoPath != null 
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: Image.file(
-                      File(DataStore().logoPath!), 
+                      File(settingsProvider.logoPath!), 
                       width: 30, 
                       height: 30, 
                       fit: BoxFit.cover,
-                      key: ValueKey(DataStore().logoPath), // Cache bust key
+                      key: ValueKey(settingsProvider.logoPath), // Cache bust key
                     ),
                   )
                 : const Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary),
@@ -588,7 +583,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 40),
             const SizedBox(height: 10),
             Text(
-              "Secure POS System for ${store.shopName}",
+              "Secure POS System for ${settingsProvider.shopName}",
               style: const TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 0.5),
             ),
             const SizedBox(height: 20),

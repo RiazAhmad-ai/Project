@@ -1,7 +1,6 @@
-// lib/features/inventory/low_stock_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:rsellx/providers/inventory_provider.dart';
 
 class LowStockScreen extends StatefulWidget {
   const LowStockScreen({super.key});
@@ -13,10 +12,10 @@ class LowStockScreen extends StatefulWidget {
 class _LowStockScreenState extends State<LowStockScreen> {
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<DataStore>();
+    final inventoryProvider = context.watch<InventoryProvider>();
     
     // Filter items with stock < lowStockThreshold
-    final lowStockItems = store.inventory.where((item) {
+    final lowStockItems = inventoryProvider.inventory.where((item) {
       return item.stock < item.lowStockThreshold;
     }).toList();
 

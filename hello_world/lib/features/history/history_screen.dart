@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:rsellx/providers/sales_provider.dart';
+import 'package:rsellx/providers/settings_provider.dart';
+import 'package:rsellx/providers/inventory_provider.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/sale_model.dart';
 import '../../data/models/inventory_model.dart';
 import '../../shared/utils/formatting.dart';
@@ -33,14 +35,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    DataStore().addListener(_onDataChange);
     _scrollController.addListener(_onScroll);
-    _loadInitialHistory();
   }
 
   @override
   void dispose() {
-    DataStore().removeListener(_onDataChange);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -52,17 +51,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  void _loadInitialHistory() {
-    final allHistory = DataStore().historyItems;
-    
+  void _syncData(List<SaleRecord> allHistory) {
     _filteredHistory = allHistory.where((item) {
       final matchesDate = _isSameDay(item.date, _selectedDate);
       final name = item.name.toLowerCase();
       final status = item.status.toLowerCase();
-      return matchesDate && (name.contains(_searchQuery.toLowerCase()) || status.contains(_searchQuery.toLowerCase()));
+      final query = _searchQuery.toLowerCase();
+      return matchesDate && (name.contains(query) || status.contains(query));
     }).toList();
 
-    // Grouping
     _groupedSales = {};
     final List<String> fullBillOrder = [];
     for (var item in _filteredHistory) {
@@ -81,32 +78,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
        return timeB.compareTo(timeA);
     });
 
-    setState(() {
-      _currentPage = 1;
-      _displayedBillOrder = fullBillOrder.take(_pageSize).toList();
-    });
+    _displayedBillOrder = fullBillOrder.take(_currentPage * _pageSize).toList();
+
   }
 
   void _loadMoreHistory() {
     if (_isLoadingMore) return;
     
-    // Total bills
-    final Map<String, List<SaleRecord>> allGroups = {};
+    final salesProvider = context.read<SalesProvider>();
+    final allHistory = salesProvider.historyItems;
+
+    final filtered = allHistory.where((item) {
+      final matchesDate = _isSameDay(item.date, _selectedDate);
+      final name = item.name.toLowerCase();
+      final status = item.status.toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return matchesDate && (name.contains(query) || status.contains(query));
+    }).toList();
+
     final List<String> fullBillOrder = [];
-    for (var item in _filteredHistory) {
+    final Map<String, List<SaleRecord>> groups = {};
+    for (var item in filtered) {
       final key = item.billId ?? item.id;
-      if (!allGroups.containsKey(key)) {
-        allGroups[key] = [];
+      if (!groups.containsKey(key)) {
+        groups[key] = [];
         fullBillOrder.add(key);
       }
-      allGroups[key]!.add(item);
+      groups[key]!.add(item);
     }
 
-    fullBillOrder.sort((a, b) {
-       final timeA = allGroups[a]!.first.date;
-       final timeB = allGroups[b]!.first.date;
-       return timeB.compareTo(timeA);
-    });
+    fullBillOrder.sort((a, b) => groups[b]!.first.date.compareTo(groups[a]!.first.date));
 
     if (_displayedBillOrder.length >= fullBillOrder.length) return;
 
@@ -123,11 +124,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  void _onDataChange() {
-    if (mounted) {
-      _loadInitialHistory();
-    }
-  }
 
   void _openSearchScanner() async {
     final String? barcode = await Navigator.push<String>(
@@ -139,16 +135,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     if (barcode == null) return;
     
-    final inventoryBox = Hive.box<InventoryItem>('inventoryBox');
-    try {
-      final match = inventoryBox.values.firstWhere((item) => item.barcode == barcode);
-      _searchController.text = match.name;
-      _searchQuery = match.name;
-      _loadInitialHistory();
-    } catch (e) {
-      _searchController.text = barcode;
-      _searchQuery = barcode;
-      _loadInitialHistory();
+    final match = context.read<InventoryProvider>().findItemByBarcode(barcode);
+    if (match != null) {
+      setState(() {
+        _searchController.text = match.name;
+        _searchQuery = match.name;
+        _currentPage = 1;
+      });
+    } else {
+      setState(() {
+        _searchController.text = barcode;
+        _searchQuery = barcode;
+        _currentPage = 1;
+      });
     }
   }
 
@@ -217,7 +216,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {
-                DataStore().refundSale(item, refundQty: refundQty);
+                context.read<SalesProvider>().refundSale(item, refundQty: refundQty);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -248,7 +247,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           TextButton(
             onPressed: () {
-              DataStore().deleteHistoryItem(id);
+              context.read<SalesProvider>().deleteHistoryItem(id);
               Navigator.pop(ctx);
             },
             child: const Text("DELETE", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
@@ -294,11 +293,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 price: double.tryParse(priceCtrl.text) ?? item.price,
                 actualPrice: item.actualPrice,
                 qty: int.tryParse(qtyCtrl.text) ?? item.qty,
-                profit: 0, // Recalculated in DataStore
+                profit: 0, // Recalculated in provider
                 date: item.date,
                 status: item.status,
               );
-              DataStore().updateHistoryItem(item, updatedSale);
+              context.read<SalesProvider>().updateHistoryItem(item, updatedSale);
               Navigator.pop(context);
             },
             child: const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -310,7 +309,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Summary calculations from the already filtered set in _loadInitialHistory
+    final salesProvider = context.watch<SalesProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
+
+    // Sync data reactively from the provider's source of truth
+    _syncData(salesProvider.historyItems);
+
     double dayTotal = 0;
     double dayProfit = 0;
     for (var item in _filteredHistory) {
@@ -365,7 +369,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           IconButton(
                             onPressed: () => ReportingService.generateSalesReport(
-                              shopName: DataStore().shopName,
+                              shopName: settingsProvider.shopName,
                               sales: _filteredHistory,
                               date: _selectedDate,
                             ),
@@ -397,8 +401,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 },
                               );
                               if (picked != null) {
-                                _selectedDate = picked;
-                                _loadInitialHistory();
+                                setState(() {
+                                  _selectedDate = picked;
+                                  _currentPage = 1;
+                                });
                               }
                             },
                             icon: Container(
@@ -427,10 +433,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: const EdgeInsets.all(16.0),
               child: TextField(
                 controller: _searchController,
-                onChanged: (v) {
-                  _searchQuery = v;
-                  _loadInitialHistory();
-                },
+                onChanged: (val) => setState(() {
+                  _searchQuery = val;
+                  _currentPage = 1;
+                }),
                 decoration: InputDecoration(
                   hintText: "Search items or status...",
                   prefixIcon: const Icon(Icons.search),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:rsellx/providers/inventory_provider.dart';
+import 'package:rsellx/providers/settings_provider.dart';
 import '../../shared/widgets/full_scanner_screen.dart';
 import '../../data/models/inventory_model.dart';
-import '../../data/repositories/data_store.dart';
 import '../../core/services/reporting_service.dart';
 import 'add_item_sheet.dart';
 import 'sell_item_sheet.dart';
@@ -31,16 +32,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
-    _scrollController.addListener(_onScroll);
-    // Listen to Hive box changes to refresh UI automatically
-    Hive.box<InventoryItem>('inventoryBox').listenable().addListener(_onHiveBoxChanged);
-  }
-
-  void _onHiveBoxChanged() {
-    if (mounted) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
-    }
+    });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -57,8 +52,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _loadInitialData() {
-    final store = context.read<DataStore>();
-    final allItems = store.inventory.where((item) {
+    final inventoryProvider = context.read<InventoryProvider>();
+    final allItems = inventoryProvider.inventory.where((item) {
       final query = _searchQuery.toLowerCase();
       // Simple fuzzy search (can be improved further)
       return item.name.toLowerCase().contains(query) || 
@@ -77,8 +72,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _loadMoreData() {
     if (_isLoadingMore) return;
     
-    final store = context.read<DataStore>();
-    final allItems = store.inventory.where((item) {
+    final inventoryProvider = context.read<InventoryProvider>();
+    final allItems = inventoryProvider.inventory.where((item) {
       final query = _searchQuery.toLowerCase();
       return item.name.toLowerCase().contains(query) || 
              item.barcode.toLowerCase().contains(query);
@@ -126,9 +121,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     if (barcode == null) return;
 
-    final store = context.read<DataStore>();
+    final inventoryProvider = context.read<InventoryProvider>();
     try {
-      final match = store.inventory.firstWhere((item) => item.barcode == barcode);
+      final match = inventoryProvider.inventory.firstWhere((item) => item.barcode == barcode);
       
       if (!mounted) return;
       showModalBottomSheet(
@@ -261,10 +256,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<DataStore>();
+    final inventoryProvider = context.watch<InventoryProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
+    
+    // Auto-refresh displayed items if inventory changes externally
+    // (This is a simplified way to sync, could be optimized)
+    _displayedItems = inventoryProvider.inventory.where((item) {
+      final query = _searchQuery.toLowerCase();
+      return item.name.toLowerCase().contains(query) || 
+             item.barcode.toLowerCase().contains(query);
+    }).toList().take(_currentPage * _pageSize).toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -276,8 +280,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
             icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
             onPressed: () {
               ReportingService.generateInventoryExcel(
-                shopName: store.shopName,
-                items: store.inventory,
+                shopName: settingsProvider.shopName,
+                items: inventoryProvider.inventory,
               );
             },
           ),

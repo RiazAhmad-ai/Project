@@ -1,14 +1,14 @@
-// lib/shared/widgets/alert_card.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rsellx/providers/inventory_provider.dart';
 import '../../features/inventory/low_stock_screen.dart';
-import '../../data/repositories/data_store.dart';
 
 class AlertCard extends StatelessWidget {
   const AlertCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    int lowStockCount = DataStore().getLowStockCount();
+    int lowStockCount = context.watch<InventoryProvider>().getLowStockCount();
 
     // 1. Container ko GestureDetector mein wrap kiya taake click ho sake
     return GestureDetector(

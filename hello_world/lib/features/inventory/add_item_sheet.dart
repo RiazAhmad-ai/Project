@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../shared/widgets/full_scanner_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:rsellx/providers/inventory_provider.dart';
 import '../../data/models/inventory_model.dart';
-import '../../data/repositories/data_store.dart';
+import '../../shared/widgets/full_scanner_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
@@ -66,7 +67,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
         lowStockThreshold: int.tryParse(_thresholdController.text) ?? 5,
       );
 
-      DataStore().addInventoryItem(newItem);
+      context.read<InventoryProvider>().addInventoryItem(newItem);
 
       if (mounted) {
         Navigator.pop(context);

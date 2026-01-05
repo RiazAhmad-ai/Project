@@ -6,7 +6,12 @@ import 'package:rsellx/core/theme/app_theme.dart';
 import 'package:rsellx/data/models/inventory_model.dart';
 import 'package:rsellx/data/models/sale_model.dart';
 import 'package:rsellx/data/models/expense_model.dart';
-import 'package:rsellx/data/repositories/data_store.dart';
+
+import 'package:rsellx/providers/inventory_provider.dart';
+import 'package:rsellx/providers/expense_provider.dart';
+import 'package:rsellx/providers/sales_provider.dart';
+import 'package:rsellx/providers/settings_provider.dart';
+import 'package:rsellx/providers/backup_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,14 +31,14 @@ Future<void> main() async {
       Hive.registerAdapter(ExpenseItemAdapter());
     }
 
-    // 2. Data Migration
+    // 2. Data Migration (Open/Close dynamic boxes to convert Map data)
     await _migrateData();
 
-    // 3. Open Boxes
+    // 3. Open Boxes for the App (Typed)
     await Hive.openBox<InventoryItem>('inventoryBox');
-    await Hive.openBox<ExpenseItem>('expensesBox');
     await Hive.openBox<SaleRecord>('historyBox');
-    await Hive.openBox<SaleRecord>('cartBox'); // Persistent Cart
+    await Hive.openBox<SaleRecord>('cartBox');
+    await Hive.openBox<ExpenseItem>('expensesBox');
     await Hive.openBox('settingsBox');
   } catch (e) {
     print("CRITICAL INITIALIZATION ERROR: $e");
@@ -42,7 +47,11 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => DataStore()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => SalesProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => BackupProvider()),
       ],
       child: const MyApp(),
     ),
@@ -50,9 +59,10 @@ Future<void> main() async {
 }
 
 Future<void> _migrateData() async {
-  // Logic for data migration remains the same to handle legacy Map data
+  // 1. Migrate History
   var historyBox = await Hive.openBox('historyBox');
-  for (var key in historyBox.keys) {
+  final List<dynamic> historyKeys = historyBox.keys.toList();
+  for (var key in historyKeys) {
     var value = historyBox.get(key);
     if (value is Map) {
       try {
@@ -76,8 +86,10 @@ Future<void> _migrateData() async {
   }
   await historyBox.close();
 
+  // 2. Migrate Inventory
   var inventoryBox = await Hive.openBox('inventoryBox');
-  for (var key in inventoryBox.keys) {
+  final List<dynamic> invKeys = inventoryBox.keys.toList();
+  for (var key in invKeys) {
     var value = inventoryBox.get(key);
     if (value is Map) {
       try {
@@ -97,8 +109,10 @@ Future<void> _migrateData() async {
   }
   await inventoryBox.close();
 
+  // 3. Migrate Expenses
   var expensesBox = await Hive.openBox('expensesBox');
-  for (var key in expensesBox.keys) {
+  final List<dynamic> expKeys = expensesBox.keys.toList();
+  for (var key in expKeys) {
     var value = expensesBox.get(key);
     if (value is Map) {
       try {

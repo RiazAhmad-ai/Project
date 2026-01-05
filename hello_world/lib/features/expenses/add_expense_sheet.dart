@@ -1,6 +1,6 @@
-// lib/features/expenses/add_expense_sheet.dart
 import 'package:flutter/material.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:provider/provider.dart';
+import 'package:rsellx/providers/expense_provider.dart';
 import '../../data/models/expense_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -188,7 +188,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   category: selectedCategory,
                 );
 
-                DataStore().addExpense(expense);
+                context.read<ExpenseProvider>().addExpense(expense);
 
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(

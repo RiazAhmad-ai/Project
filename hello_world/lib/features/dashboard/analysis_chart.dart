@@ -222,25 +222,25 @@ class _AnalysisChartState extends State<AnalysisChart> {
           children: [
             _buildDetailRow("Total Sales", s, AppColors.accent),
             const Divider(),
-            _buildDetailRow("Net Profit", p, AppColors.success),
-            const Divider(),
             _buildDetailRow("Expenses", e, AppColors.error),
+            const Divider(),
+            _buildDetailRow("Net Profit", p, AppColors.success),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (p - e) >= 0 ? Colors.green[50] : Colors.red[50],
+                color: p >= 0 ? Colors.green[50] : Colors.red[50],
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Take Home:", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Status:", style: TextStyle(fontWeight: FontWeight.bold)),
                   Text(
-                    "Rs ${Formatter.formatCurrency(p - e)}",
+                    p >= 0 ? "PROFITABLE" : "LOSS",
                     style: AppTextStyles.bodyLarge.copyWith(
                       fontWeight: FontWeight.w900,
-                      color: (p - e) >= 0 ? AppColors.success : AppColors.error,
+                      color: p >= 0 ? AppColors.success : AppColors.error,
                     ),
                   ),
                 ],

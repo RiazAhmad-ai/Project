@@ -1,9 +1,9 @@
 // lib/features/inventory/sell_item_sheet.dart
 import 'package:flutter/material.dart';
+import 'package:rsellx/providers/sales_provider.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/inventory_model.dart';
 import '../../data/models/sale_model.dart';
-import '../../data/repositories/data_store.dart';
 import '../../shared/utils/formatting.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -52,7 +52,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         date: DateTime.now(),
       );
 
-      context.read<DataStore>().addToCart(sale);
+      context.read<SalesProvider>().addToCart(sale);
       Navigator.pop(context, "ADD_MORE");
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,7 +75,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         date: DateTime.now(),
       );
 
-      context.read<DataStore>().addToCart(sale);
+      context.read<SalesProvider>().addToCart(sale);
       Navigator.pop(context, "VIEW_CART");
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

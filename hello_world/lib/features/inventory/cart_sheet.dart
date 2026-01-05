@@ -1,7 +1,8 @@
-// lib/features/inventory/cart_sheet.dart
 import 'package:flutter/material.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:provider/provider.dart';
+import '../../providers/sales_provider.dart';
 import '../../shared/utils/formatting.dart';
+import '../../data/models/sale_model.dart';
 
 class CartSheet extends StatefulWidget {
   const CartSheet({super.key});
@@ -13,11 +14,9 @@ class CartSheet extends StatefulWidget {
 class _CartSheetState extends State<CartSheet> {
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: DataStore(),
-      builder: (context, _) {
-        final cartItems = DataStore().cart;
-        double total = cartItems.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
+    final salesProvider = context.watch<SalesProvider>();
+    final cartItems = salesProvider.cart;
+    double total = salesProvider.cartTotal;
 
         return Container(
           padding: EdgeInsets.only(
@@ -46,7 +45,7 @@ class _CartSheetState extends State<CartSheet> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_sweep, color: Colors.red),
-                    onPressed: () => DataStore().clearCart(),
+                    onPressed: () => salesProvider.clearCart(),
                   ),
                 ],
               ),
@@ -77,19 +76,19 @@ class _CartSheetState extends State<CartSheet> {
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         child: ListTile(
-                          title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text("Rs ${Formatter.formatCurrency(item['price'])} / unit"),
+                          title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text("Rs ${Formatter.formatCurrency(item.price)} / unit"),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                                onPressed: () => DataStore().updateCartQty(item['itemId'], item['qty'] - 1),
+                                 onPressed: () => salesProvider.updateCartQty(item.itemId, item.qty - 1),
                               ),
-                              Text("${item['qty']}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              Text("${item.qty}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-                                onPressed: () => DataStore().updateCartQty(item['itemId'], item['qty'] + 1),
+                                 onPressed: () => salesProvider.updateCartQty(item.itemId, item.qty + 1),
                               ),
                             ],
                           ),
@@ -126,8 +125,8 @@ class _CartSheetState extends State<CartSheet> {
                         height: 56,
                         child: ElevatedButton(
                           onPressed: () async {
-                            await DataStore().checkoutCart();
-                            Navigator.pop(context);
+                            await salesProvider.checkoutCart();
+                            if (context.mounted) Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text("Sale Completed Successfully! ✅"),
@@ -149,7 +148,6 @@ class _CartSheetState extends State<CartSheet> {
             ],
           ),
         );
-      },
     );
   }
 }

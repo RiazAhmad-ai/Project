@@ -1,8 +1,9 @@
 // lib/features/expenses/expense_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:rsellx/providers/expense_provider.dart';
+import 'package:rsellx/providers/settings_provider.dart';
 import 'add_expense_sheet.dart';
-import '../../data/repositories/data_store.dart';
 import '../../data/models/expense_model.dart';
 import '../../shared/utils/formatting.dart';
 import '../../core/theme/app_colors.dart';
@@ -35,7 +36,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   // === FUNCTIONS ===
 
   void _deleteItem(String id) {
-    DataStore().deleteExpense(id);
+    context.read<ExpenseProvider>().deleteExpense(id);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Expense Deleted"),
@@ -180,7 +181,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                         item.title = titleController.text;
                         item.category = currentCategory;
 
-                        DataStore().updateExpense(item);
+                        context.read<ExpenseProvider>().updateExpense(item);
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -252,12 +253,13 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<DataStore>();
+    final expenseProvider = context.watch<ExpenseProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
     
     // 1. Get Data for SELECTED DATE ONLY
-    final expensesForDate = store.getExpensesForDate(_selectedDate);
+    final expensesForDate = expenseProvider.getExpensesForDate(_selectedDate);
     final filteredList = _getFilteredList(expensesForDate);
-    final totalSpent = store.getTotalExpensesForDate(_selectedDate);
+    final totalSpent = expenseProvider.getTotalExpensesForDate(_selectedDate);
 
     String displayDate = _formatDate(_selectedDate);
     bool isToday = _formatDate(DateTime.now()) == displayDate;
@@ -274,8 +276,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         actions: [
           IconButton(
             onPressed: () => ReportingService.generateExpenseReport(
-              shopName: store.shopName,
-              expenses: _getFilteredList(store.getExpensesForDate(_selectedDate)),
+              shopName: settingsProvider.shopName,
+              expenses: _getFilteredList(expenseProvider.getExpensesForDate(_selectedDate)),
               date: _selectedDate,
             ),
             icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent),

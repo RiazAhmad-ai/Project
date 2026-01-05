@@ -7,7 +7,9 @@ import '../../shared/widgets/alert_card.dart';
 import 'analysis_chart.dart';
 import 'top_products_chart.dart';
 import '../settings/settings_screen.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:rsellx/providers/inventory_provider.dart';
+import 'package:rsellx/providers/sales_provider.dart';
+import 'package:rsellx/providers/settings_provider.dart';
 import '../../shared/utils/formatting.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -39,13 +41,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<DataStore>();
-    
+    final inventoryProvider = context.watch<InventoryProvider>();
+    final salesProvider = context.watch<SalesProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
+
     // 1. Calculate Total Stock Value (Real Data)
-    double totalStockValue = store.getTotalStockValue();
+    double totalStockValue = inventoryProvider.getTotalStockValue();
 
     // 2. Get Analytics Data (Real Data from History & Expenses)
-    final analyticsData = store.getAnalytics(_filter);
+    final analyticsData = salesProvider.getAnalytics(_filter);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -56,13 +60,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Row(
           children: [
             ClipOval(
-              child: store.logoPath != null && File(store.logoPath!).existsSync()
+              child: settingsProvider.logoPath != null && File(settingsProvider.logoPath!).existsSync()
                   ? Image.file(
-                      File(store.logoPath!),
+                      File(settingsProvider.logoPath!),
                       height: 40,
                       width: 40,
                       fit: BoxFit.cover,
-                      key: ValueKey(store.logoPath), // Instant update key
+                      key: ValueKey(settingsProvider.logoPath), // Instant update key
                     )
                   : Image.asset(
                       'assets/logo.png',
@@ -90,13 +94,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    store.shopName,
+                    settingsProvider.shopName,
                     style: AppTextStyles.h3.copyWith(fontSize: 15),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
                   Text(
-                    store.address,
+                    settingsProvider.address,
                     style: AppTextStyles.label.copyWith(fontSize: 9),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -107,9 +111,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         actions: [
-          Consumer<DataStore>(
-            builder: (context, store, _) {
-              final cartCount = store.cartCount;
+          Consumer<SalesProvider>(
+            builder: (context, sales, _) {
+              final cartCount = sales.cartCount;
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -189,6 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 // === ALL-IN-ONE ANALYTICS CARD (Sales, Profit, Expense) ===
                 // Updated to accept 'chartData' map
                 AnalysisChart(
+                  key: ValueKey("chart_${_filter}_${salesProvider.historyItems.length}_${salesProvider.cartCount}"),
                   title: "$_filter Overview",
                   chartData: analyticsData, // <--- Passing Real Data Here
                 ),
@@ -197,7 +202,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // === TOP MOVING PRODUCTS ===
                 TopProductsChart(
-                  data: store.getTopSellingProducts(),
+                  data: salesProvider.getTopSellingProducts(),
                 ),
 
                 const SizedBox(height: 40),

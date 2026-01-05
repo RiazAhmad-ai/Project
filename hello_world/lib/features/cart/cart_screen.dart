@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../data/repositories/data_store.dart';
+import 'package:rsellx/providers/sales_provider.dart';
+import 'package:rsellx/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/utils/formatting.dart';
@@ -32,8 +33,9 @@ class _CartScreenState extends State<CartScreen> {
       ),
       body: Builder(
         builder: (context) {
-          final store = context.watch<DataStore>();
-          final cart = store.cart;
+          final salesProvider = context.watch<SalesProvider>();
+          final settingsProvider = context.watch<SettingsProvider>();
+          final cart = salesProvider.cart;
           
           if (cart.isEmpty) {
             return Center(
@@ -86,7 +88,7 @@ class _CartScreenState extends State<CartScreen> {
                              const SizedBox(width: 8),
                              IconButton(
                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                               onPressed: () => store.removeFromCart(index),
+                               onPressed: () => salesProvider.removeFromCart(index),
                              ),
                            ],
                          ),
@@ -113,7 +115,7 @@ class _CartScreenState extends State<CartScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Total Items", style: AppTextStyles.label),
-                        Text("${store.cartCount}", style: AppTextStyles.h3),
+                        Text("${salesProvider.cartCount}", style: AppTextStyles.h3),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -122,7 +124,7 @@ class _CartScreenState extends State<CartScreen> {
                       children: [
                         Text("Total Amount", style: AppTextStyles.h3),
                         Text(
-                          "Rs ${Formatter.formatCurrency(store.cartTotal)}",
+                          "Rs ${Formatter.formatCurrency(salesProvider.cartTotal)}",
                           style: AppTextStyles.h1.copyWith(color: AppColors.secondary, fontSize: 24),
                         ),
                       ],
@@ -166,10 +168,10 @@ class _CartScreenState extends State<CartScreen> {
                           elevation: 0,
                         ),
                         onPressed: () async {
-                          final cartItems = List<SaleRecord>.from(store.cart);
+                          final cartItems = List<SaleRecord>.from(salesProvider.cart);
                           final billId = "BILL-${DateTime.now().millisecondsSinceEpoch}";
                           
-                          await store.checkoutCart();
+                          await salesProvider.checkoutCart();
                           
                           if (context.mounted) {
                             Navigator.pop(context);
@@ -184,8 +186,8 @@ class _CartScreenState extends State<CartScreen> {
                             // Only generate if toggle is ON
                             if (_shouldPrintInvoice) {
                               ReportingService.generateInvoice(
-                                shopName: store.shopName,
-                                address: store.address,
+                                shopName: settingsProvider.shopName,
+                                address: settingsProvider.address,
                                 items: cartItems,
                                 billId: billId,
                               );
