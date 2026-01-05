@@ -1,5 +1,6 @@
 // lib/features/inventory/sell_item_sheet.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../data/models/inventory_model.dart';
 import '../../data/models/sale_model.dart';
 import '../../data/repositories/data_store.dart';
@@ -38,9 +39,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
   }
 
   void _addToCart() {
-    final double salePrice =
-        double.tryParse(_salePriceController.text) ?? widget.item.price;
-
+    final double salePrice = double.tryParse(_salePriceController.text) ?? widget.item.price;
     if (widget.item.stock >= _sellQty && _salePriceController.text.isNotEmpty) {
       final sale = SaleRecord(
         id: "sale_${DateTime.now().millisecondsSinceEpoch}",
@@ -53,7 +52,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         date: DateTime.now(),
       );
 
-      DataStore().addToCart(sale);
+      context.read<DataStore>().addToCart(sale);
       Navigator.pop(context, "ADD_MORE");
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,9 +62,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
   }
 
   void _confirmSell() {
-    final double salePrice =
-        double.tryParse(_salePriceController.text) ?? widget.item.price;
-
+    final double salePrice = double.tryParse(_salePriceController.text) ?? widget.item.price;
     if (widget.item.stock >= _sellQty && _salePriceController.text.isNotEmpty) {
       final sale = SaleRecord(
         id: "sale_${DateTime.now().millisecondsSinceEpoch}",
@@ -78,7 +75,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         date: DateTime.now(),
       );
 
-      DataStore().addToCart(sale);
+      context.read<DataStore>().addToCart(sale);
       Navigator.pop(context, "VIEW_CART");
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +128,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
                   Text(
                     "Stock Remaining: ${widget.item.stock}",
                     style: TextStyle(
-                      color: widget.item.stock < 5 ? Colors.red : Colors.grey,
+                      color: widget.item.stock < widget.item.lowStockThreshold ? Colors.red : Colors.grey,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

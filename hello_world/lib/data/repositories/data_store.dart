@@ -1,9 +1,9 @@
 // lib/data/repositories/data_store.dart
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
-import 'package:hello_world/data/models/inventory_model.dart';
-import 'package:hello_world/data/models/sale_model.dart';
-import 'package:hello_world/data/models/expense_model.dart';
+import 'package:rsellx/data/models/inventory_model.dart';
+import 'package:rsellx/data/models/sale_model.dart';
+import 'package:rsellx/data/models/expense_model.dart';
 import '../../shared/utils/formatting.dart';
 
 class DataStore extends ChangeNotifier {
@@ -15,6 +15,7 @@ class DataStore extends ChangeNotifier {
       Hive.box<InventoryItem>('inventoryBox');
   Box<ExpenseItem> get _expensesBox => Hive.box<ExpenseItem>('expensesBox');
   Box<SaleRecord> get _historyBox => Hive.box<SaleRecord>('historyBox');
+  Box<SaleRecord> get _cartBox => Hive.box<SaleRecord>('cartBox');
   Box get _settingsBox => Hive.box('settingsBox');
 
   // === BACKUP LOGIC (REAL DATA) ===
@@ -142,7 +143,7 @@ class DataStore extends ChangeNotifier {
   }
 
   int getLowStockCount() {
-    return _inventoryBox.values.where((item) => item.stock < 5).length;
+    return _inventoryBox.values.where((item) => item.stock < item.lowStockThreshold).length;
   }
 
   // === 2. EXPENSES ===
@@ -221,12 +222,10 @@ class DataStore extends ChangeNotifier {
     int qtyDiff = oldItem.qty - newData.qty;
 
     if (qtyDiff != 0 && oldItem.itemId.isNotEmpty) {
-      try {
-        final invItem = _inventoryBox.values.firstWhere((i) => i.id == oldItem.itemId);
+      final invItem = _inventoryBox.get(oldItem.itemId);
+      if (invItem != null) {
         invItem.stock += qtyDiff;
         invItem.save();
-      } catch (e) {
-        print("Stock adjustment failed during history edit: $e");
       }
     }
 
@@ -276,12 +275,10 @@ class DataStore extends ChangeNotifier {
 
     // 3. Stock Restore logic
     if (historyItem.itemId.isNotEmpty) {
-      try {
-        final inventoryItem = _inventoryBox.values.firstWhere((i) => i.id == historyItem.itemId);
+      final inventoryItem = _inventoryBox.get(historyItem.itemId);
+      if (inventoryItem != null) {
         inventoryItem.stock += qtyToRefund;
         inventoryItem.save();
-      } catch (e) {
-        print("Stock restore failed: $e");
       }
     }
 
@@ -394,11 +391,12 @@ class DataStore extends ChangeNotifier {
   String _getWeekdayName(int day) => ["M", "T", "W", "T", "F", "S", "S"][day - 1];
 
   // === 5. PROFILE SETTINGS ===
-  String get shopName => _settingsBox.get('shopName', defaultValue: "RIAZ AHMAD CROCKERY");
+  String get shopName => _settingsBox.get('shopName', defaultValue: "RsellX");
   String get ownerName => _settingsBox.get('ownerName', defaultValue: "Riaz Ahmad");
   String get phone => _settingsBox.get('phone', defaultValue: "+92 3195910091");
   String get address => _settingsBox.get('address', defaultValue: "Jehangira Underpass Shop#21");
   String? get logoPath => _settingsBox.get('logoPath');
+  String get adminPasscode => _settingsBox.get('adminPasscode', defaultValue: "1234");
 
   Future<void> updateProfile(String name, String shop, String phone, String address, {String? logo}) async {
     _settingsBox.put('ownerName', name);
@@ -406,6 +404,11 @@ class DataStore extends ChangeNotifier {
     _settingsBox.put('phone', phone);
     _settingsBox.put('address', address);
     if (logo != null) _settingsBox.put('logoPath', logo);
+    notifyListeners();
+  }
+
+  Future<void> updatePasscode(String newPasscode) async {
+    await _settingsBox.put('adminPasscode', newPasscode);
     notifyListeners();
   }
 
@@ -418,48 +421,44 @@ class DataStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  // === 7. CART SYSTEM (IN-MEMORY) ===
-  final List<SaleRecord> _cart = [];
-  List<SaleRecord> get cart => List.unmodifiable(_cart);
+  // === 7. PERSISTENT CART SYSTEM ===
+  List<SaleRecord> get cart => _cartBox.values.toList();
 
   void addToCart(SaleRecord item) {
-    _cart.add(item);
+    _cartBox.put(item.id, item);
     notifyListeners();
   }
 
   void removeFromCart(int index) {
-    if (index >= 0 && index < _cart.length) {
-      _cart.removeAt(index);
-      notifyListeners();
-    }
-  }
-
-  void clearCart() {
-    _cart.clear();
+    _cartBox.deleteAt(index);
     notifyListeners();
   }
 
-  double get cartTotal => _cart.fold(0, (sum, item) => sum + (item.price * item.qty));
-  int get cartCount => _cart.fold(0, (sum, item) => sum + item.qty);
+  void clearCart() {
+    _cartBox.clear();
+    notifyListeners();
+  }
+
+  double get cartTotal => _cartBox.values.fold(0, (sum, item) => sum + (item.price * item.qty));
+  int get cartCount => _cartBox.values.fold(0, (sum, item) => sum + item.qty);
 
   Future<void> checkoutCart() async {
     final String billId = "bill_${DateTime.now().millisecondsSinceEpoch}";
-    
-    for (var item in _cart) {
+    final items = _cartBox.values.toList();
+
+    for (var item in items) {
       item.billId = billId;
       // 1. Save to History
       _historyBox.put(item.id, item);
 
       // 2. Adjust Stock
-      try {
-        final invItem = _inventoryBox.values.firstWhere((i) => i.id == item.itemId);
+      final invItem = _inventoryBox.get(item.itemId);
+      if (invItem != null) {
         invItem.stock -= item.qty;
         invItem.save();
-      } catch (e) {
-        print("Stock update failed for cart item ${item.name}: $e");
       }
     }
-    _cart.clear();
+    await _cartBox.clear();
     notifyListeners();
   }
 

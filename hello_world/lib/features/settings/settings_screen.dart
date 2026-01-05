@@ -81,8 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              // Default Passcode: 1234
-              if (enteredPasscode == "1234") {
+              if (enteredPasscode == DataStore().adminPasscode) {
                 Navigator.pop(context, true);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -183,6 +182,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.accent, foregroundColor: Colors.white),
             child: const Text("SAVE CHANGES"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 1b. CHANGE PASSCODE DIALOG
+  void _changePasscode() async {
+    if (!await _verifyPasscode()) return;
+
+    String newPasscode = "";
+    String confirmPasscode = "";
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Change Admin Passcode", style: AppTextStyles.h3),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              decoration: const InputDecoration(labelText: "New 4-Digit Passcode"),
+              onChanged: (val) => newPasscode = val,
+            ),
+            TextField(
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              decoration: const InputDecoration(labelText: "Confirm New Passcode"),
+              onChanged: (val) => confirmPasscode = val,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              if (newPasscode.length != 4) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Passcode must be 4 digits!")));
+                return;
+              }
+              if (newPasscode != confirmPasscode) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Passcodes do not match!")));
+                return;
+              }
+              DataStore().updatePasscode(newPasscode);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Passcode changed successfully! ✅"), backgroundColor: AppColors.success),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            child: const Text("CHANGE"),
           ),
         ],
       ),
@@ -450,6 +506,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   )
                 : const Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary),
+            ),
+            _buildSettingsTile(
+              Icons.lock_reset_rounded,
+              "Change Admin Passcode",
+              "Update security PIN for sensitive actions",
+              onTap: _changePasscode,
             ),
 
             const SizedBox(height: 10),

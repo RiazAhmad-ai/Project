@@ -18,6 +18,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
   final TextEditingController _stockController = TextEditingController(text: "1");
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _barcodeController = TextEditingController();
+  final TextEditingController _thresholdController = TextEditingController(text: "5");
 
   bool _isSaving = false;
 
@@ -62,6 +63,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
         stock: int.tryParse(_stockController.text) ?? 0,
         description: _descController.text.isEmpty ? null : _descController.text,
         barcode: _barcodeController.text.trim(),
+        lowStockThreshold: int.tryParse(_thresholdController.text) ?? 5,
       );
 
       DataStore().addInventoryItem(newItem);
@@ -190,6 +192,18 @@ class _AddItemSheetState extends State<AddItemSheet> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _thresholdController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: "Low Stock Alert Level",
+                prefixIcon: const Icon(Icons.warning_amber_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
             ),
             const SizedBox(height: 12),
 

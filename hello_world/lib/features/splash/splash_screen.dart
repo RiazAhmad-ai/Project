@@ -36,45 +36,34 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 1. AAPKA LOGO
+            // 1. AAPKA LOGO (Sellora Brand Logo)
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1), // Background circle
+                color: Colors.white, // Pure white for brand logo
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: DataStore().logoPath != null && File(DataStore().logoPath!).existsSync()
-                  ? Image.file(
-                      File(DataStore().logoPath!),
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.contain,
-                    )
-                  : Image.asset(
-                      'assets/logo.png',
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.contain,
-                      errorBuilder: (c, o, s) =>
-                          const Icon(Icons.storefront, size: 80, color: AppColors.primary),
-                    ),
+              child: Image.asset(
+                'assets/logo.png',
+                width: 150, // Larger for brand impact
+                height: 150,
+                fit: BoxFit.contain,
+              ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 60),
 
-            // 2. APP NAME
-            Text(
-              DataStore().shopName,
-              style: AppTextStyles.h1.copyWith(letterSpacing: 2),
-            ),
-
-            const SizedBox(height: 40),
-
-            // 3. LOADING LINE BAR (New Change)
+            // 3. LOADING LINE BAR
             SizedBox(
-              width: 200, // Bar ki chaurayi (width)
+              width: 200, 
               child: ClipRRect(
-                // Kinare Gol karne ke liye
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
                   backgroundColor: AppColors.primary.withOpacity(0.1),
@@ -87,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 10),
 
             const Text(
-              "Loading System...",
+              "Loading...",
               style: TextStyle(color: Colors.grey, fontSize: 10),
             ),
           ],

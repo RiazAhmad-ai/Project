@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-import 'features/splash/splash_screen.dart';
-import 'core/theme/app_theme.dart';
-import 'data/models/inventory_model.dart';
-import 'data/models/sale_model.dart';
-import 'data/models/expense_model.dart';
+import 'package:rsellx/features/splash/splash_screen.dart';
+import 'package:rsellx/core/theme/app_theme.dart';
+import 'package:rsellx/data/models/inventory_model.dart';
+import 'package:rsellx/data/models/sale_model.dart';
+import 'package:rsellx/data/models/expense_model.dart';
+import 'package:rsellx/data/repositories/data_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,12 +33,20 @@ Future<void> main() async {
     await Hive.openBox<InventoryItem>('inventoryBox');
     await Hive.openBox<ExpenseItem>('expensesBox');
     await Hive.openBox<SaleRecord>('historyBox');
+    await Hive.openBox<SaleRecord>('cartBox'); // Persistent Cart
     await Hive.openBox('settingsBox');
   } catch (e) {
     print("CRITICAL INITIALIZATION ERROR: $e");
   }
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => DataStore()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 Future<void> _migrateData() async {
@@ -116,7 +125,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Retail POS System',
+      title: 'RsellX',
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
       home: const SplashScreen(),

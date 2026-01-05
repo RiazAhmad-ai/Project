@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../shared/widgets/filter_buttons.dart';
 import 'overview_card.dart';
 import '../../shared/widgets/alert_card.dart';
@@ -11,7 +12,7 @@ import '../../shared/utils/formatting.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
-import 'package:provider/provider.dart';
+
 import '../cart/cart_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -28,27 +29,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Refresh screen when data changes
-    DataStore().addListener(_onDataChange);
+    // Use context.read in initState if needed, but watch in build handles updates
   }
 
   @override
   void dispose() {
-    DataStore().removeListener(_onDataChange);
     super.dispose();
-  }
-
-  void _onDataChange() {
-    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<DataStore>();
+    
     // 1. Calculate Total Stock Value (Real Data)
-    double totalStockValue = DataStore().getTotalStockValue();
+    double totalStockValue = store.getTotalStockValue();
 
     // 2. Get Analytics Data (Real Data from History & Expenses)
-    final analyticsData = DataStore().getAnalytics(_filter);
+    final analyticsData = store.getAnalytics(_filter);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -59,13 +56,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Row(
           children: [
             ClipOval(
-              child: DataStore().logoPath != null && File(DataStore().logoPath!).existsSync()
+              child: store.logoPath != null && File(store.logoPath!).existsSync()
                   ? Image.file(
-                      File(DataStore().logoPath!),
+                      File(store.logoPath!),
                       height: 40,
                       width: 40,
                       fit: BoxFit.cover,
-                      key: ValueKey(DataStore().logoPath), // Instant update key
+                      key: ValueKey(store.logoPath), // Instant update key
                     )
                   : Image.asset(
                       'assets/logo.png',
@@ -93,13 +90,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    DataStore().shopName,
+                    store.shopName,
                     style: AppTextStyles.h3.copyWith(fontSize: 15),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
                   Text(
-                    DataStore().address,
+                    store.address,
                     style: AppTextStyles.label.copyWith(fontSize: 9),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -110,10 +107,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         actions: [
-          ListenableBuilder(
-            listenable: DataStore(),
-            builder: (context, _) {
-              final cartCount = DataStore().cart.length;
+          Consumer<DataStore>(
+            builder: (context, store, _) {
+              final cartCount = store.cartCount;
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -201,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                 // === TOP MOVING PRODUCTS ===
                 TopProductsChart(
-                  data: DataStore().getTopSellingProducts(),
+                  data: store.getTopSellingProducts(),
                 ),
 
                 const SizedBox(height: 40),

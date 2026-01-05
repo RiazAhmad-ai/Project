@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import '../../shared/widgets/full_scanner_screen.dart';
 import '../../data/models/inventory_model.dart';
 import '../../data/repositories/data_store.dart';
@@ -44,7 +45,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   void dispose() {
-    Hive.box<InventoryItem>('inventoryBox').listenable().removeListener(_onHiveBoxChanged);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -57,9 +57,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   void _loadInitialData() {
-    final box = Hive.box<InventoryItem>('inventoryBox');
-    final allItems = box.values.where((item) {
+    final store = context.read<DataStore>();
+    final allItems = store.inventory.where((item) {
       final query = _searchQuery.toLowerCase();
+      // Simple fuzzy search (can be improved further)
       return item.name.toLowerCase().contains(query) || 
              item.barcode.toLowerCase().contains(query);
     }).toList();
@@ -76,8 +77,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _loadMoreData() {
     if (_isLoadingMore) return;
     
-    final box = Hive.box<InventoryItem>('inventoryBox');
-    final allItems = box.values.where((item) {
+    final store = context.read<DataStore>();
+    final allItems = store.inventory.where((item) {
       final query = _searchQuery.toLowerCase();
       return item.name.toLowerCase().contains(query) || 
              item.barcode.toLowerCase().contains(query);
@@ -89,7 +90,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     setState(() => _isLoadingMore = true);
 
-    // Simulate a small delay for smoother feel or actual DB fetch latency
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       
@@ -126,10 +126,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     if (barcode == null) return;
 
-    // Search for match in inventory
-    final box = Hive.box<InventoryItem>('inventoryBox');
+    final store = context.read<DataStore>();
     try {
-      final match = box.values.firstWhere((item) => item.barcode == barcode);
+      final match = store.inventory.firstWhere((item) => item.barcode == barcode);
       
       if (!mounted) return;
       showModalBottomSheet(
@@ -169,6 +168,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final priceCtrl = TextEditingController(text: item.price.toString());
     final stockCtrl = TextEditingController(text: item.stock.toString());
     final barcodeCtrl = TextEditingController(text: item.barcode);
+    final thresholdCtrl = TextEditingController(text: item.lowStockThreshold.toString());
 
     showModalBottomSheet(
       context: context,
@@ -188,8 +188,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
             const SizedBox(height: 16),
             TextField(controller: barcodeCtrl, decoration: const InputDecoration(labelText: "Barcode")),
             TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Name")),
-            TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Price"), keyboardType: TextInputType.number),
-            TextField(controller: stockCtrl, decoration: const InputDecoration(labelText: "Stock"), keyboardType: TextInputType.number),
+            Row(
+              children: [
+                Expanded(child: TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Price"), keyboardType: TextInputType.number)),
+                const SizedBox(width: 16),
+                Expanded(child: TextField(controller: stockCtrl, decoration: const InputDecoration(labelText: "Stock"), keyboardType: TextInputType.number)),
+              ],
+            ),
+            TextField(controller: thresholdCtrl, decoration: const InputDecoration(labelText: "Low Stock Alert Level"), keyboardType: TextInputType.number),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -206,6 +212,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       item.price = double.tryParse(priceCtrl.text) ?? item.price;
                       item.stock = int.tryParse(stockCtrl.text) ?? item.stock;
                       item.barcode = barcodeCtrl.text.trim();
+                      item.lowStockThreshold = int.tryParse(thresholdCtrl.text) ?? item.lowStockThreshold;
                       item.save();
                       Navigator.pop(context);
                     },
@@ -257,6 +264,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<DataStore>();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -267,10 +275,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
           IconButton(
             icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
             onPressed: () {
-              final items = Hive.box<InventoryItem>('inventoryBox').values.toList();
               ReportingService.generateInventoryExcel(
-                shopName: DataStore().shopName,
-                items: items,
+                shopName: store.shopName,
+                items: store.inventory,
               );
             },
           ),
@@ -355,37 +362,65 @@ class _InventoryScreenState extends State<InventoryScreen> {
             child: SlideAnimation(
               verticalOffset: 50.0,
               child: FadeInAnimation(
-                child: Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Colors.grey[200]!),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    onTap: () => _showEditSheet(item),
-                    leading: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.inventory_2_outlined, color: AppColors.accent),
+                child: Dismissible(
+                  key: Key(item.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    title: Text(item.name, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
-                    subtitle: Text("Rs ${item.price.toStringAsFixed(0)} | Code: ${item.barcode}", style: AppTextStyles.bodySmall),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: item.stock < 5 ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (direction) => _deleteItem(item),
+                  confirmDismiss: (direction) async {
+                    return await showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text("Delete?"),
+                        content: const Text("Are you sure you want to delete this item?"),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Keep")),
+                          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Delete", style: TextStyle(color: Colors.red))),
+                        ],
                       ),
-                      child: Text(
-                        "${item.stock} Left",
-                        style: AppTextStyles.label.copyWith(
-                          color: item.stock < 5 ? AppColors.error : AppColors.success,
-                          fontWeight: FontWeight.bold,
+                    );
+                  },
+                  child: Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.grey[200]!),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      onTap: () => _showEditSheet(item),
+                      leading: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.inventory_2_outlined, color: AppColors.accent),
+                      ),
+                      title: Text(item.name, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
+                      subtitle: Text("Rs ${item.price.toStringAsFixed(0)} | Code: ${item.barcode}", style: AppTextStyles.bodySmall),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: item.stock < item.lowStockThreshold ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "${item.stock} Left",
+                          style: AppTextStyles.label.copyWith(
+                            color: item.stock < item.lowStockThreshold ? AppColors.error : AppColors.success,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

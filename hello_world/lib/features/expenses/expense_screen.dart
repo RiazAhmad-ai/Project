@@ -1,5 +1,6 @@
 // lib/features/expenses/expense_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'add_expense_sheet.dart';
 import '../../data/repositories/data_store.dart';
 import '../../data/models/expense_model.dart';
@@ -24,17 +25,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    DataStore().addListener(_onDataChange);
   }
 
   @override
   void dispose() {
-    DataStore().removeListener(_onDataChange);
     super.dispose();
-  }
-
-  void _onDataChange() {
-    if (mounted) setState(() {});
   }
 
   // === FUNCTIONS ===
@@ -257,10 +252,12 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<DataStore>();
+    
     // 1. Get Data for SELECTED DATE ONLY
-    final expensesForDate = DataStore().getExpensesForDate(_selectedDate);
+    final expensesForDate = store.getExpensesForDate(_selectedDate);
     final filteredList = _getFilteredList(expensesForDate);
-    final totalSpent = DataStore().getTotalExpensesForDate(_selectedDate);
+    final totalSpent = store.getTotalExpensesForDate(_selectedDate);
 
     String displayDate = _formatDate(_selectedDate);
     bool isToday = _formatDate(DateTime.now()) == displayDate;
@@ -277,8 +274,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         actions: [
           IconButton(
             onPressed: () => ReportingService.generateExpenseReport(
-              shopName: DataStore().shopName,
-              expenses: _getFilteredList(DataStore().getExpensesForDate(_selectedDate)),
+              shopName: store.shopName,
+              expenses: _getFilteredList(store.getExpensesForDate(_selectedDate)),
               date: _selectedDate,
             ),
             icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent),

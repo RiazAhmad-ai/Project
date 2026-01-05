@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../data/repositories/data_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -29,10 +30,11 @@ class _CartScreenState extends State<CartScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: ListenableBuilder(
-        listenable: DataStore(),
-        builder: (context, _) {
-          final cart = DataStore().cart;
+      body: Builder(
+        builder: (context) {
+          final store = context.watch<DataStore>();
+          final cart = store.cart;
+          
           if (cart.isEmpty) {
             return Center(
               child: Column(
@@ -75,19 +77,19 @@ class _CartScreenState extends State<CartScreen> {
                           style: AppTextStyles.label,
                         ),
                         trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "Rs ${Formatter.formatCurrency(item.price * item.qty)}",
-                              style: AppTextStyles.h3.copyWith(color: AppColors.primary),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => DataStore().removeFromCart(index),
-                            ),
-                          ],
-                        ),
+                           mainAxisSize: MainAxisSize.min,
+                           children: [
+                             Text(
+                               "Rs ${Formatter.formatCurrency(item.price * item.qty)}",
+                               style: AppTextStyles.h3.copyWith(color: AppColors.primary),
+                             ),
+                             const SizedBox(width: 8),
+                             IconButton(
+                               icon: const Icon(Icons.delete_outline, color: Colors.red),
+                               onPressed: () => store.removeFromCart(index),
+                             ),
+                           ],
+                         ),
                       ),
                     );
                   },
@@ -111,7 +113,7 @@ class _CartScreenState extends State<CartScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("Total Items", style: AppTextStyles.label),
-                        Text("${DataStore().cartCount}", style: AppTextStyles.h3),
+                        Text("${store.cartCount}", style: AppTextStyles.h3),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -120,7 +122,7 @@ class _CartScreenState extends State<CartScreen> {
                       children: [
                         Text("Total Amount", style: AppTextStyles.h3),
                         Text(
-                          "Rs ${Formatter.formatCurrency(DataStore().cartTotal)}",
+                          "Rs ${Formatter.formatCurrency(store.cartTotal)}",
                           style: AppTextStyles.h1.copyWith(color: AppColors.secondary, fontSize: 24),
                         ),
                       ],
@@ -164,7 +166,6 @@ class _CartScreenState extends State<CartScreen> {
                           elevation: 0,
                         ),
                         onPressed: () async {
-                          final store = DataStore();
                           final cartItems = List<SaleRecord>.from(store.cart);
                           final billId = "BILL-${DateTime.now().millisecondsSinceEpoch}";
                           
