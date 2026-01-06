@@ -8,6 +8,7 @@ class OverviewCard extends StatefulWidget {
   final String amount;
   final IconData icon; // Icon can be changed
   final List<Color>? gradientColors; // For changing colors
+  final VoidCallback? onTap;
 
   const OverviewCard({
     super.key,
@@ -15,6 +16,7 @@ class OverviewCard extends StatefulWidget {
     required this.amount,
     this.icon = Icons.inventory_2, // Default Icon
     this.gradientColors, // Optional Color
+    this.onTap,
   });
 
   @override
@@ -26,10 +28,12 @@ class _OverviewCardState extends State<OverviewCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
         gradient: LinearGradient(
           colors:
               widget.gradientColors ??
@@ -103,6 +107,7 @@ class _OverviewCardState extends State<OverviewCard> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

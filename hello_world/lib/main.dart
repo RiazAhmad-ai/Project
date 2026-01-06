@@ -6,12 +6,14 @@ import 'package:rsellx/core/theme/app_theme.dart';
 import 'package:rsellx/data/models/inventory_model.dart';
 import 'package:rsellx/data/models/sale_model.dart';
 import 'package:rsellx/data/models/expense_model.dart';
+import 'package:rsellx/data/models/credit_model.dart';
 
 import 'package:rsellx/providers/inventory_provider.dart';
 import 'package:rsellx/providers/expense_provider.dart';
 import 'package:rsellx/providers/sales_provider.dart';
 import 'package:rsellx/providers/settings_provider.dart';
 import 'package:rsellx/providers/backup_provider.dart';
+import 'package:rsellx/providers/credit_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +32,9 @@ Future<void> main() async {
     if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(ExpenseItemAdapter());
     }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(CreditRecordAdapter());
+    }
 
     // 2. Data Migration (Open/Close dynamic boxes to convert Map data)
     await _migrateData();
@@ -39,6 +44,7 @@ Future<void> main() async {
     await Hive.openBox<SaleRecord>('historyBox');
     await Hive.openBox<SaleRecord>('cartBox');
     await Hive.openBox<ExpenseItem>('expensesBox');
+    await Hive.openBox<CreditRecord>('creditsBox');
     await Hive.openBox('settingsBox');
   } catch (e) {
     print("CRITICAL INITIALIZATION ERROR: $e");
@@ -52,6 +58,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => SalesProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => BackupProvider()),
+        ChangeNotifierProvider(create: (_) => CreditProvider()),
       ],
       child: const MyApp(),
     ),

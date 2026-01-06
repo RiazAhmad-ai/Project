@@ -27,8 +27,8 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const DashboardScreen(), // 0: Home
     const InventoryScreen(), // 1: Stock
-    const ExpenseScreen(), // 2: Expenses
-    const HistoryScreen(), // 3: History
+    const ExpenseScreen(),   // 2: Expenses
+    const HistoryScreen(),   // 3: History
   ];
 
   void _onItemTapped(int index) {
@@ -151,6 +151,7 @@ class _MainScreenState extends State<MainScreen> {
               label: "Stock",
               index: 1,
             ),
+
             const SizedBox(width: 48),
             _buildTabItem(
               icon: Icons.wallet_outlined,

@@ -16,6 +16,8 @@ import '../../core/theme/app_text_styles.dart';
 
 
 import '../cart/cart_screen.dart';
+import '../credit/credit_screen.dart';
+import 'package:rsellx/providers/expense_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -111,6 +113,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         actions: [
+          // KHATA BUTTON
+          IconButton(
+            icon: const Icon(Icons.menu_book_rounded, color: Colors.black),
+            tooltip: "Khata (Credit)",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CreditScreen()),
+              );
+            },
+          ),
           Consumer<SalesProvider>(
             builder: (context, sales, _) {
               final cartCount = sales.cartCount;
@@ -182,6 +195,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       "Rs ${Formatter.formatCurrency(totalStockValue)}", // DYNAMIC
                   icon: Icons.inventory_2,
                 ),
+
+
 
                 const SizedBox(height: 20),
 
