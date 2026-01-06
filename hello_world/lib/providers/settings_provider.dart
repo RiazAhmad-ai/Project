@@ -8,10 +8,10 @@ class SettingsProvider extends ChangeNotifier {
 
   final Box _settingsBox = Hive.box('settingsBox');
 
-  String get shopName => _settingsBox.get('shopName', defaultValue: "RsellX");
-  String get ownerName => _settingsBox.get('ownerName', defaultValue: "Riaz Ahmad");
-  String get phone => _settingsBox.get('phone', defaultValue: "+92 3195910091");
-  String get address => _settingsBox.get('address', defaultValue: "Jehangira Underpass Shop#21");
+  String get shopName => _settingsBox.get('shopName', defaultValue: "RsellX - [Your Business Name]");
+  String get ownerName => _settingsBox.get('ownerName', defaultValue: "[Enter Owner Name]");
+  String get phone => _settingsBox.get('phone', defaultValue: "[Enter Phone Number]");
+  String get address => _settingsBox.get('address', defaultValue: "[Tap Settings to add your Address]");
   String? get logoPath => _settingsBox.get('logoPath');
   String get adminPasscode => _settingsBox.get('adminPasscode', defaultValue: "1234");
 
