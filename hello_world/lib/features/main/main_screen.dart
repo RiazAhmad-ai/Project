@@ -85,6 +85,136 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  // === MANUAL SELL DIALOG ===
+  void _showManualSellDialog() {
+    final codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.keyboard, color: Colors.white, size: 28),
+                  SizedBox(width: 10),
+                  Text("Manual Entry", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text("Enter Product Code / Barcode", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 20),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: codeController,
+                      autofocus: true,
+                      style: const TextStyle(fontSize: 18, letterSpacing: 1, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        hintText: "CODE HERE",
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(16),
+                        prefixIcon: Icon(Icons.qr_code_2, color: AppColors.primary),
+                      ),
+                      onSubmitted: (_) => _processManualSell(codeController.text),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text("Cancel", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _processManualSell(codeController.text),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 2,
+                          ),
+                          child: const Text("DONE", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _processManualSell(String code) async {
+    if (code.trim().isEmpty) return;
+    Navigator.pop(context); // Close dialog
+
+    // Search for match in inventory
+    final match = context.read<InventoryProvider>().findItemByBarcode(code.trim());
+    
+    if (match != null) {
+      if (!mounted) return;
+      final result = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        builder: (context) => SellItemSheet(item: match),
+      );
+
+       if (result == "ADD_MORE") {
+        // Re-open scanner automatically ? Or manual?
+        // Let's just stay on screen for manual
+      } else if (result == "VIEW_CART") {
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CartScreen()),
+        );
+      }
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ No item found with Code: $code"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,34 +225,49 @@ class _MainScreenState extends State<MainScreen> {
         builder: (context) {
           final cartCount = context.watch<SalesProvider>().cart.length;
           return SizedBox(
-            height: 65,
-            width: 65,
-            child: FloatingActionButton(
-              onPressed: _openBarcodeScanner,
-              backgroundColor: AppColors.accent,
-              shape: const CircleBorder(),
-              elevation: 4,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.qr_code_scanner, size: 30, color: Colors.white),
-                  if (cartCount > 0)
-                    Positioned(
-                      top: -10,
-                      right: -10,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+            height: 70,
+            width: 70,
+            child: Tooltip(
+              message: "Tap to Scan, Hold to Type Code",
+              child: GestureDetector(
+                onLongPress: () {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                     const SnackBar(
+                       content: Text("Manual Mode Activated ⌨️"), 
+                       duration: Duration(milliseconds: 600),
+                       backgroundColor: Colors.redAccent,
+                     )
+                   );
+                   _showManualSellDialog();
+                },
+                child: FloatingActionButton(
+                  onPressed: _openBarcodeScanner, // Standard Scan
+                  backgroundColor: AppColors.accent,
+                  shape: const CircleBorder(),
+                  elevation: 4,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.qr_code_scanner, size: 30, color: Colors.white),
+                      if (cartCount > 0)
+                        Positioned(
+                          top: -10,
+                          right: -10,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              "$cartCount",
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          "$cartCount",
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           );

@@ -534,6 +534,72 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
+  // === 5. MANUAL SELL DIALOG ===
+  void _showManualSellDialog() {
+    final codeController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Manual Sell"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Enter Item Barcode / Code Number:"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: codeController,
+              autofocus: true,
+              keyboardType: TextInputType.text, // Alphanumeric support
+              decoration: const InputDecoration(
+                hintText: "e.g. 1001",
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.qr_code_2),
+              ),
+              onSubmitted: (_) => _processManualSell(codeController.text),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () => _processManualSell(codeController.text),
+            child: const Text("Sell"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _processManualSell(String code) {
+    if (code.trim().isEmpty) return;
+    
+    Navigator.pop(context); // Close dialog
+    
+    final inventoryProvider = context.read<InventoryProvider>();
+    try {
+      final match = inventoryProvider.inventory.firstWhere(
+        (item) => item.barcode == code.trim(),
+      );
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        builder: (context) => SellItemSheet(item: match),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ Item not found with code: $code"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _buildItemList() {
     if (_displayedItems.isEmpty) {
       return Center(
