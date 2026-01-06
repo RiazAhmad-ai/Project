@@ -5,16 +5,29 @@ import 'package:rsellx/data/models/sale_model.dart';
 import 'package:rsellx/data/models/expense_model.dart';
 
 class SalesProvider extends ChangeNotifier {
+  // === Cache ===
+  List<SaleRecord> _cachedHistory = [];
+  bool _historyDirty = true;
+  
+  // Analytics Cache to prevent re-calc on every build
+  final Map<String, Map<String, dynamic>> _analyticsCache = {};
+
   SalesProvider() {
     _historyBox.watch().listen((_) {
+      _historyDirty = true;
+      _analyticsCache.clear(); // Invalidate analytics cache
       notifyListeners();
     });
     _cartBox.watch().listen((_) {
       notifyListeners();
     });
     _expensesBox.watch().listen((_) {
+      _analyticsCache.clear(); // Expenses affect analytics too
       notifyListeners();
     });
+    
+    // Initial Load
+    _refreshCache();
   }
 
   Box<SaleRecord> get _historyBox => Hive.box<SaleRecord>('historyBox');
@@ -23,17 +36,27 @@ class SalesProvider extends ChangeNotifier {
   Box<ExpenseItem> get _expensesBox => Hive.box<ExpenseItem>('expensesBox');
 
   // === HISTORY ===
+  // Optimized Getter
   List<SaleRecord> get historyItems {
+    if (_historyDirty) {
+      _refreshCache();
+    }
+    return _cachedHistory;
+  }
+  
+  void _refreshCache() {
     var list = _historyBox.values.toList();
+    // Sorting can be expensive, do it only when necessary
     list.sort((a, b) => b.id.compareTo(a.id));
-    return list;
+    _cachedHistory = list;
+    _historyDirty = false;
   }
 
   List<SaleRecord> get _validHistory => historyItems.where((h) => h.status != "Refunded").toList();
 
   void addHistoryItem(SaleRecord item) {
     _historyBox.put(item.id, item);
-    notifyListeners();
+    // Listener will handle cache invalidation
   }
 
   void updateHistoryItem(SaleRecord oldItem, SaleRecord newData) {
@@ -52,12 +75,10 @@ class SalesProvider extends ChangeNotifier {
       }
     }
     oldItem.save();
-    notifyListeners();
   }
 
   void deleteHistoryItem(String id) {
     _historyBox.delete(id);
-    notifyListeners();
   }
 
   void refundSale(SaleRecord historyItem, {int? refundQty}) {
@@ -98,7 +119,6 @@ class SalesProvider extends ChangeNotifier {
         inventoryItem.save();
       }
     }
-    notifyListeners();
   }
 
   // === CART ===
@@ -108,17 +128,14 @@ class SalesProvider extends ChangeNotifier {
 
   void addToCart(SaleRecord item) {
     _cartBox.put(item.id, item);
-    notifyListeners();
   }
 
   void removeFromCart(int index) {
     _cartBox.deleteAt(index);
-    notifyListeners();
   }
 
   void clearCart() {
     _cartBox.clear();
-    notifyListeners();
   }
 
   Future<void> checkoutCart({double discount = 0.0}) async {
@@ -127,7 +144,6 @@ class SalesProvider extends ChangeNotifier {
     final now = DateTime.now();
 
     for (var item in items) {
-      // Create a FRESH copy of the record to move it to History
       final historyRecord = SaleRecord(
         id: "hist_${item.id}_${now.millisecondsSinceEpoch}",
         itemId: item.itemId,
@@ -141,9 +157,9 @@ class SalesProvider extends ChangeNotifier {
         billId: billId,
       );
       
+      // We wait for puts to ensure data integrity
       await _historyBox.put(historyRecord.id, historyRecord);
       
-      // Update inventory stock
       final invItem = _inventoryBox.get(item.itemId);
       if (invItem != null) {
         invItem.stock -= item.qty;
@@ -151,16 +167,15 @@ class SalesProvider extends ChangeNotifier {
       }
     }
     
-    // Record Discount if any
     if (discount > 0) {
       final discountRecord = SaleRecord(
         id: "disc_${billId}_${now.millisecondsSinceEpoch}",
         itemId: "DISCOUNT",
         name: "Discount Applied",
-        price: -discount, // Negative Price
+        price: -discount,
         actualPrice: 0,
         qty: 1,
-        profit: -discount, // Loss
+        profit: -discount,
         date: now,
         status: "Sold",
         billId: billId,
@@ -168,17 +183,25 @@ class SalesProvider extends ChangeNotifier {
       await _historyBox.put(discountRecord.id, discountRecord);
     }
     
-    // Clear cart and notify all home screen listeners
     await _cartBox.clear();
-    notifyListeners();
   }
 
-  // === ANALYTICS ===
+  // === ANALYTICS (OPTIMIZED) ===
   Map<String, dynamic> getAnalytics(String type) {
-    if (type == "Weekly") return _getWeeklyData();
-    if (type == "Monthly") return _getMonthlyData();
-    if (type == "Annual") return _getAnnualData();
-    return _getWeeklyData();
+    // Return cached if available
+    if (_analyticsCache.containsKey(type)) {
+      return _analyticsCache[type]!;
+    }
+    
+    // Compute and cache
+    Map<String, dynamic> result;
+    if (type == "Weekly") result = _getWeeklyData();
+    else if (type == "Monthly") result = _getMonthlyData();
+    else if (type == "Annual") result = _getAnnualData();
+    else result = _getWeeklyData();
+
+    _analyticsCache[type] = result;
+    return result;
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
@@ -188,6 +211,9 @@ class SalesProvider extends ChangeNotifier {
     List<double> sales = [], expenses = [], profit = [];
     List<String> labels = [];
     DateTime now = DateTime.now();
+    
+    // Pre-calculate expenses map for faster lookup might be overkill for < 1000 items, but good for scale
+    // For now keeping simple iteration as it's cached now.
 
     for (int i = 6; i >= 0; i--) {
       DateTime date = now.subtract(Duration(days: i));
@@ -196,6 +222,7 @@ class SalesProvider extends ChangeNotifier {
       double daySales = 0.0;
       double dayItemProfit = 0.0;
       
+      // Use _validHistory which uses _cachedHistory
       for (var item in _validHistory) {
         if (_isSameDay(date, item.date)) {
           daySales += (item.price * item.qty);
@@ -225,7 +252,6 @@ class SalesProvider extends ChangeNotifier {
     DateTime now = DateTime.now();
 
     for (int i = 3; i >= 0; i--) {
-      // Period of 7 days
       DateTime end = now.subtract(Duration(days: i * 7));
       DateTime start = end.subtract(const Duration(days: 7));
 
@@ -294,6 +320,7 @@ class SalesProvider extends ChangeNotifier {
   }
 
   List<Map<String, dynamic>> getTopSellingProducts({int limit = 5}) {
+    // This could also be cached if needed, but for now it's okay.
     final Map<String, int> productSales = {};
     for (var sale in _validHistory) {
       productSales[sale.name] = (productSales[sale.name] ?? 0) + sale.qty;
@@ -310,6 +337,6 @@ class SalesProvider extends ChangeNotifier {
   Future<void> clearAllData() async {
     await _historyBox.clear();
     await _cartBox.clear();
-    notifyListeners();
+    // Cache clearing is handled by listener
   }
 }
