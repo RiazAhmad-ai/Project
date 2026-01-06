@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:barcode_widget/barcode_widget.dart';
-import 'package:mobile_scanner/mobile_scanner.dart' hide Barcode;
+import '../../shared/widgets/full_scanner_screen.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -364,7 +364,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
         builder: (context, setDialogState) => Dialog(
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 24,
-            vertical: 24,
+            vertical: 16, // More room for keyboard
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
@@ -380,11 +380,11 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                   // Gradient Header
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.accent.withOpacity(0.8),
+                          AppColors.accent.withOpacity(0.85),
                           AppColors.accent,
                         ],
                         begin: Alignment.topLeft,
@@ -397,29 +397,29 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: const Icon(
-                            Icons.print,
+                            Icons.print_outlined,
                             color: Colors.white,
-                            size: 32,
+                            size: 28,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         const Text(
-                          "Enter Quantity",
+                          "Number of Labels",
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "How many labels do you want to print?",
+                          "Set quantity to print",
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 13,
@@ -441,8 +441,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                             // Minus Button
                             GestureDetector(
                               onTap: () {
-                                int current =
-                                    int.tryParse(quantityController.text) ?? 1;
+                                int current = int.tryParse(quantityController.text) ?? 1;
                                 if (current > 1) {
                                   setDialogState(() {
                                     tempQuantity = current - 1;
@@ -450,35 +449,20 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                   });
                                 }
                               },
-                              child: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: Colors.red.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.remove,
-                                  color: Colors.red,
-                                  size: 24,
-                                ),
-                              ),
+                              child: _buildStepperButton(Icons.remove, Colors.red),
                             ),
 
                             const SizedBox(width: 16),
 
                             // Text Field
                             SizedBox(
-                              width: 100,
+                              width: 120,
                               child: TextField(
                                 controller: quantityController,
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  fontSize: 32,
+                                  fontSize: 36,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.accent,
                                 ),
@@ -487,15 +471,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                   fillColor: AppColors.accent.withOpacity(0.08),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: AppColors.accent.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(
-                                      color: AppColors.accent.withOpacity(0.3),
-                                    ),
+                                    borderSide: BorderSide.none,
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
@@ -505,7 +481,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                     ),
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 12,
+                                    vertical: 8,
                                   ),
                                 ),
                                 onChanged: (value) {
@@ -521,8 +497,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                             // Plus Button
                             GestureDetector(
                               onTap: () {
-                                int current =
-                                    int.tryParse(quantityController.text) ?? 1;
+                                int current = int.tryParse(quantityController.text) ?? 1;
                                 if (current < 500) {
                                   setDialogState(() {
                                     tempQuantity = current + 1;
@@ -530,50 +505,17 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                   });
                                 }
                               },
-                              child: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(
-                                    color: Colors.green.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Colors.green,
-                                  size: 24,
-                                ),
-                              ),
+                              child: _buildStepperButton(Icons.add, Colors.green),
                             ),
                           ],
                         ),
 
-                        const SizedBox(height: 8),
-                        Text(
-                          "Enter 1 - 500 labels",
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
 
                         // Quick Select Buttons
-                        Text(
-                          "Quick Select",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [10, 25, 50, 100].map((qty) {
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [5, 10, 25, 50, 100].map((qty) {
                             final isSelected = tempQuantity == qty;
                             return GestureDetector(
                               onTap: () {
@@ -582,11 +524,10 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                   quantityController.text = "$qty";
                                 });
                               },
-                              child: Container(
-                                width: 55,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                ),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 44,
+                                height: 44,
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.accent
@@ -595,29 +536,27 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                   border: Border.all(
                                     color: isSelected
                                         ? AppColors.accent
-                                        : Colors.grey[300]!,
+                                        : Colors.transparent,
                                   ),
                                   boxShadow: isSelected
                                       ? [
                                           BoxShadow(
-                                            color: AppColors.accent.withOpacity(
-                                              0.3,
-                                            ),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
+                                            color: AppColors.accent.withOpacity(0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
                                           ),
                                         ]
-                                      : null,
+                                      : [],
                                 ),
+                                alignment: Alignment.center,
                                 child: Text(
                                   "$qty",
-                                  textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: isSelected
                                         ? Colors.white
-                                        : Colors.black,
+                                        : Colors.grey[700],
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
@@ -634,11 +573,9 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                               child: TextButton(
                                 onPressed: () => Navigator.pop(context),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(16),
                                     side: BorderSide(color: Colors.grey[300]!),
                                   ),
                                 ),
@@ -647,6 +584,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ),
@@ -656,26 +594,11 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                               flex: 2,
                               child: ElevatedButton.icon(
                                 onPressed: () {
-                                  final input = int.tryParse(
-                                    quantityController.text.trim(),
-                                  );
-                                  if (input == null ||
-                                      input < 1 ||
-                                      input > 500) {
+                                  final input = int.tryParse(quantityController.text.trim());
+                                  if (input == null || input < 1 || input > 500) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Row(
-                                          children: const [
-                                            Icon(
-                                              Icons.error_outline,
-                                              color: Colors.white,
-                                            ),
-                                            SizedBox(width: 10),
-                                            Text(
-                                              "Enter a valid number (1-500)",
-                                            ),
-                                          ],
-                                        ),
+                                      const SnackBar(
+                                        content: Text("Enter valid number (1-500)"),
                                         backgroundColor: Colors.red,
                                         behavior: SnackBarBehavior.floating,
                                       ),
@@ -690,32 +613,28 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.accent,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  elevation: 4,
+                                  shadowColor: AppColors.accent.withOpacity(0.4),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                  elevation: 0,
                                 ),
-                                icon: const Icon(
-                                  Icons.check_circle_outline,
-                                  size: 20,
-                                ),
+                                icon: const Icon(Icons.check, size: 20),
                                 label: const Text(
                                   "Confirm",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-
-                        // Extra bottom padding for keyboard
-                        const SizedBox(height: 16),
+                        
+                        // Extra bottom padding for keyboard safety
+                        SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 16 : 0),
                       ],
                     ),
                   ),
@@ -725,6 +644,19 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStepperButton(IconData icon, Color color) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Icon(icon, color: color, size: 22),
     );
   }
 
@@ -1460,24 +1392,7 @@ class _BarcodeGeneratorScreenState extends State<BarcodeGeneratorScreen> {
                             final result = await Navigator.push(
                               this.context,
                               MaterialPageRoute(
-                                builder: (context) => Scaffold(
-                                  appBar: AppBar(
-                                    title: const Text("Scan Barcode"),
-                                    backgroundColor: AppColors.accent,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  body: MobileScanner(
-                                    onDetect: (capture) {
-                                      final barcodes = capture.barcodes;
-                                      if (barcodes.isNotEmpty) {
-                                        final code = barcodes.first.rawValue;
-                                        if (code != null) {
-                                          Navigator.pop(context, code);
-                                        }
-                                      }
-                                    },
-                                  ),
-                                ),
+                                builder: (context) => const FullScannerScreen(title: "Scan Product"),
                               ),
                             );
                             // If barcode found, search for it

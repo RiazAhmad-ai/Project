@@ -175,60 +175,172 @@ class _HistoryScreenState extends State<HistoryScreen> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text("Process Refund", style: AppTextStyles.h2),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("How many items do you want to refund?"),
-              const SizedBox(height: 20),
-              if (totalQty > 1)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, color: AppColors.error),
-                      onPressed: refundQty > 1 ? () => setDialogState(() => refundQty--) : null,
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFff9966), Color(0xFFff5e62)], // Orange/Red
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text("$refundQty", style: AppTextStyles.h1),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline, color: AppColors.success),
-                      onPressed: refundQty < totalQty ? () => setDialogState(() => refundQty++) : null,
-                    ),
-                  ],
-                )
-              else
-                Text("1 Item (Full Refund)", style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.warning,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                context.read<SalesProvider>().refundSale(item, refundQty: refundQty);
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Refund of $refundQty item(s) processed! ✅"),
-                    behavior: SnackBarBehavior.floating,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
-                );
-              },
-              child: const Text("CONFIRM REFUND", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.refresh, color: Colors.white, size: 32),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Process Refund",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.name,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "How many items to refund?",
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      if (totalQty > 1)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildStepperBtn(Icons.remove, Colors.red, () {
+                              if (refundQty > 1) setDialogState(() => refundQty--);
+                            }),
+                            Container(
+                              width: 80,
+                              alignment: Alignment.center,
+                              child: Text(
+                                "$refundQty",
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            _buildStepperBtn(Icons.add, Colors.green, () {
+                              if (refundQty < totalQty) setDialogState(() => refundQty++);
+                            }),
+                          ],
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            "1 Item (Full Refund)",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+
+                      const SizedBox(height: 24),
+                      
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              child: Text("Cancel", style: TextStyle(color: Colors.grey[600])),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                context.read<SalesProvider>().refundSale(item, refundQty: refundQty);
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Refund of $refundQty item(s) processed! ✅"),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFff5e62),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.check_circle_outline, size: 20),
+                              label: const Text(
+                                "Confirm Refund",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStepperBtn(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Icon(icon, color: color),
       ),
     );
   }
@@ -236,23 +348,86 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _handleDelete(String id) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Delete Record?", style: AppTextStyles.h3),
-        content: const Text("Are you sure? This will remove the record permanently but will NOT restore stock."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("Keep", style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<SalesProvider>().deleteHistoryItem(id);
-              Navigator.pop(ctx);
-            },
-            child: const Text("DELETE", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
-          ),
-        ],
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             // Header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFef473a), Color(0xFFcb2d3e)], // Red Gradient
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                   Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 36),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Delete Record?",
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text(
+                    "Are you sure you want to delete this record properly?\nThis action cannot be undone.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.black54, fontSize: 15, height: 1.4),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text("Keep It", style: TextStyle(color: Colors.grey[600])),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            context.read<SalesProvider>().deleteHistoryItem(id);
+                            Navigator.pop(ctx);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFef473a),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: const Text("Delete", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -264,45 +439,122 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Edit Sale Record", style: AppTextStyles.h3),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Item Name")),
-            TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Sale Price"), keyboardType: TextInputType.number),
-            TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: "Quantity"), keyboardType: TextInputType.number),
-          ],
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        insetPadding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF2193b0), Color(0xFF6dd5ed)], // Blue Gradient
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                     Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit_note, color: Colors.white, size: 30),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Edit Sale Record",
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    _buildStyledTextField(nameCtrl, "Item Name", Icons.shopping_bag_outlined),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _buildStyledTextField(priceCtrl, "Sale Price", Icons.attach_money, isNumber: true)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildStyledTextField(qtyCtrl, "Quantity", Icons.numbers, isNumber: true)),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                             style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            child: Text("Cancel", style: TextStyle(color: Colors.grey[600])),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              final updatedSale = SaleRecord(
+                                id: item.id,
+                                itemId: item.itemId,
+                                name: nameCtrl.text,
+                                price: double.tryParse(priceCtrl.text) ?? item.price,
+                                actualPrice: item.actualPrice,
+                                qty: int.tryParse(qtyCtrl.text) ?? item.qty,
+                                profit: 0, // Recalculated
+                                date: item.date,
+                                status: item.status,
+                              );
+                              context.read<SalesProvider>().updateHistoryItem(item, updatedSale);
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2193b0),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 2,
+                            ),
+                            icon: const Icon(Icons.save_outlined, size: 20),
+                            label: const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              final updatedSale = SaleRecord(
-                id: item.id,
-                itemId: item.itemId,
-                name: nameCtrl.text,
-                price: double.tryParse(priceCtrl.text) ?? item.price,
-                actualPrice: item.actualPrice,
-                qty: int.tryParse(qtyCtrl.text) ?? item.qty,
-                profit: 0, // Recalculated in provider
-                date: item.date,
-                status: item.status,
-              );
-              context.read<SalesProvider>().updateHistoryItem(item, updatedSale);
-              Navigator.pop(context);
-            },
-            child: const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+      ),
+    );
+  }
+
+  Widget _buildStyledTextField(TextEditingController controller, String label, IconData icon, {bool isNumber = false}) {
+    return TextField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       ),
     );
   }

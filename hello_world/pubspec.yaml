@@ -55,6 +55,7 @@ flutter:
 
   assets:
     - assets/logo.png
+    - assets/splash.png
     - assets/scanner_beep.mp3
 
 flutter_launcher_icons:
