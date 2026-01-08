@@ -4,14 +4,10 @@ import 'dart:math';
 import '../data/models/credit_model.dart';
 
 class CreditProvider extends ChangeNotifier {
-  Box<CreditRecord>? _box;
-  bool _isLoading = true;
-
-  bool get isLoading => _isLoading;
+  Box<CreditRecord> get _box => Hive.box<CreditRecord>('creditsBox');
 
   List<CreditRecord> get allRecords {
-    if (_box == null) return [];
-    final list = _box!.values.toList();
+    final list = _box.values.toList();
     list.sort((a, b) => b.date.compareTo(a.date)); // Newest first
     return list;
   }
@@ -40,20 +36,6 @@ class CreditProvider extends ChangeNotifier {
   double get totalToReceive => receivables.fold(0, (sum, item) => sum + item.balance);
   double get totalToPay => payables.fold(0, (sum, item) => sum + item.balance);
 
-  CreditProvider() {
-    _init();
-  }
-
-  Future<void> _init() async {
-    if (!Hive.isBoxOpen('creditsBox')) {
-       _box = await Hive.openBox<CreditRecord>('creditsBox');
-    } else {
-       _box = Hive.box<CreditRecord>('creditsBox');
-    }
-    _isLoading = false;
-    notifyListeners();
-  }
-
   String _generateId() {
     return DateTime.now().millisecondsSinceEpoch.toString() + Random().nextInt(1000).toString();
   }
@@ -77,7 +59,7 @@ class CreditProvider extends ChangeNotifier {
       dueDate: dueDate,
       isSettled: false,
     );
-    await _box?.add(record);
+    await _box.add(record);
     notifyListeners();
   }
 

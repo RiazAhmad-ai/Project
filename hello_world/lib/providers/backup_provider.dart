@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:rsellx/core/services/backup_service.dart';
 import 'package:rsellx/core/services/reporting_service.dart';
+import 'package:rsellx/core/services/logger_service.dart';
 import 'package:hive/hive.dart';
 import 'package:rsellx/data/models/inventory_model.dart';
 import 'package:rsellx/data/models/sale_model.dart';
@@ -51,7 +52,7 @@ class BackupProvider extends ChangeNotifier {
         try {
           await file.delete();
         } catch (e) {
-          print("Failed to delete logo: $e");
+          AppLogger.error("Failed to delete logo", error: e);
         }
       }
     }

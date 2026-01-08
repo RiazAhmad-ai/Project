@@ -33,17 +33,14 @@ class ExpenseProvider extends ChangeNotifier {
 
   void addExpense(ExpenseItem expense) {
     _expensesBox.put(expense.id, expense);
-    notifyListeners();
   }
 
   void updateExpense(ExpenseItem expense) {
     expense.save();
-    notifyListeners();
   }
 
   void deleteExpense(String id) {
     _expensesBox.delete(id);
-    notifyListeners();
   }
 
   double getTotalExpenses() {
@@ -58,6 +55,5 @@ class ExpenseProvider extends ChangeNotifier {
 
   Future<void> clearAllData() async {
     await _expensesBox.clear();
-    notifyListeners();
   }
 }

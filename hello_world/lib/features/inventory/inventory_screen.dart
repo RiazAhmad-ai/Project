@@ -431,53 +431,47 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final inventoryProvider = context.watch<InventoryProvider>();
-    final settingsProvider = context.watch<SettingsProvider>();
-
-    // Update list based on filter
-    _displayedItems = inventoryProvider.inventory.where((item) {
-      if (_selectedCategory != null && item.category != _selectedCategory) {
-        return false;
-      }
-      final query = _searchQuery.toLowerCase();
-      return item.name.toLowerCase().contains(query) || item.barcode.toLowerCase().contains(query);
-    }).toList();
-    
-    // Sort
-    _displayedItems.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    
-    // Pagination (simple approach for now since list is not huge, or we can use the stored paginated list logic)
-    // For now we use the filtered list directly for responsiveness
-    
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text("Stock Inventory", style: AppTextStyles.h2),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
-            onPressed: () => ReportingService.generateInventoryExcel(shopName: settingsProvider.shopName, items: inventoryProvider.inventory),
+    // Use Selector for targeted rebuilds - only rebuild when inventory changes
+    return Selector<InventoryProvider, int>(
+      selector: (_, provider) => provider.inventory.length,
+      builder: (context, inventoryLength, _) {
+        final settingsProvider = context.watch<SettingsProvider>();
+        
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            title: Text("Stock Inventory", style: AppTextStyles.h2),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
+                onPressed: () {
+                  final inventoryProvider = context.read<InventoryProvider>();
+                  ReportingService.generateInventoryExcel(
+                    shopName: settingsProvider.shopName,
+                    items: inventoryProvider.inventory
+                  );
+                },
+              ),
+              IconButton(
+                icon: const CircleAvatar(backgroundColor: AppColors.accent, child: Icon(Icons.add, color: Colors.white)),
+                onPressed: _addNewItemWithBarcode,
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
-          IconButton(
-            icon: const CircleAvatar(backgroundColor: AppColors.accent, child: Icon(Icons.add, color: Colors.white)),
-            onPressed: _addNewItemWithBarcode,
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: Column(
-              children: [
-                Row(
+          body: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.white,
+                child: Column(
                   children: [
-                    Expanded(
-                      child: TextField(
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
                         controller: _searchController,
                         onChanged: (val) => setState(() => _searchQuery = val),
                         decoration: InputDecoration(
@@ -527,6 +521,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Expanded(child: _buildItemList()),
         ],
       ),
+        );
+      },
     );
   }
 

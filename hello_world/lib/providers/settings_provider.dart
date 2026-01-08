@@ -1,12 +1,21 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 
 class SettingsProvider extends ChangeNotifier {
+  StreamSubscription? _settingsSubscription;
+  
   SettingsProvider() {
-    _settingsBox.watch().listen((_) => notifyListeners());
+    _settingsSubscription = _settingsBox.watch().listen((_) => notifyListeners());
   }
 
   final Box _settingsBox = Hive.box('settingsBox');
+  
+  @override
+  void dispose() {
+    _settingsSubscription?.cancel();
+    super.dispose();
+  }
 
   String get shopName => _settingsBox.get('shopName', defaultValue: "RsellX - [Your Business Name]");
   String get ownerName => _settingsBox.get('ownerName', defaultValue: "[Enter Owner Name]");
