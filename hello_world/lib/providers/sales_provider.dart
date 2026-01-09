@@ -134,13 +134,40 @@ class SalesProvider extends ChangeNotifier {
 
   void addToCart(SaleRecord item) {
     _cartBox.put(item.id, item);
+    // Deduct from inventory immediately
+    final invItem = _inventoryBox.get(item.itemId);
+    if (invItem != null) {
+      invItem.stock -= item.qty;
+      invItem.save();
+    }
+  }
+
+  /// Adds to cart WITHOUT deducting from inventory (for when UI handles deduction)
+  void addToCartSilent(SaleRecord item) {
+    _cartBox.put(item.id, item);
   }
 
   void removeFromCart(int index) {
+    final item = _cartBox.getAt(index);
+    if (item != null) {
+      // Restore stock
+      final invItem = _inventoryBox.get(item.itemId);
+      if (invItem != null) {
+        invItem.stock += item.qty;
+        invItem.save();
+      }
+    }
     _cartBox.deleteAt(index);
   }
 
   void clearCart() {
+    for (var item in _cartBox.values) {
+      final invItem = _inventoryBox.get(item.itemId);
+      if (invItem != null) {
+        invItem.stock += item.qty;
+        invItem.save();
+      }
+    }
     _cartBox.clear();
   }
 
@@ -166,11 +193,7 @@ class SalesProvider extends ChangeNotifier {
       // We wait for puts to ensure data integrity
       await _historyBox.put(historyRecord.id, historyRecord);
       
-      final invItem = _inventoryBox.get(item.itemId);
-      if (invItem != null) {
-        invItem.stock -= item.qty;
-        invItem.save();
-      }
+      // Stock already deducted during addToCart/qty increment
     }
     
     if (discount > 0) {
