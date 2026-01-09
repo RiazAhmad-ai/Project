@@ -63,6 +63,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         subCategory: widget.item.subCategory,
         size: widget.item.size,
         weight: widget.item.weight,
+        imagePath: widget.item.imagePath,
       );
 
       context.read<SalesProvider>().addToCart(sale);
@@ -98,6 +99,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
         subCategory: widget.item.subCategory,
         size: widget.item.size,
         weight: widget.item.weight,
+        imagePath: widget.item.imagePath,
       );
 
       context.read<SalesProvider>().addToCart(sale);

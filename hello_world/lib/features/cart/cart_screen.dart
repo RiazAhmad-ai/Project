@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rsellx/providers/sales_provider.dart';
@@ -37,6 +38,63 @@ class _CartScreenState extends State<CartScreen> {
   void dispose() {
     _discountCtrl.dispose();
     super.dispose();
+  }
+
+  void _showImagePreview(String imagePath, String productName) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.file(
+                File(imagePath),
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   const Icon(Icons.inventory_2, size: 18, color: AppColors.accent),
+                   const SizedBox(width: 8),
+                   Text(
+                    productName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.cancel, color: Colors.white, size: 40),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -96,7 +154,27 @@ class _CartScreenState extends State<CartScreen> {
                         ],
                       ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: GestureDetector(
+                          onTap: item.imagePath != null && File(item.imagePath!).existsSync()
+                              ? () => _showImagePreview(item.imagePath!, item.name)
+                              : null,
+                          child: Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: item.imagePath != null ? Border.all(color: Colors.grey[200]!) : null,
+                              image: item.imagePath != null && File(item.imagePath!).existsSync()
+                                  ? DecorationImage(image: FileImage(File(item.imagePath!)), fit: BoxFit.cover)
+                                  : null,
+                            ),
+                            child: item.imagePath == null || !File(item.imagePath!).existsSync()
+                                ? const Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 24)
+                                : null,
+                          ),
+                        ),
                         title: Text(item.name, style: AppTextStyles.h3),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

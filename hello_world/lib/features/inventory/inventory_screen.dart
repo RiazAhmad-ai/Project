@@ -166,37 +166,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
       context,
       MaterialPageRoute(
         builder: (context) =>
-            const FullScannerScreen(title: "Inventory Search"),
+            const FullScannerScreen(title: "Scan to Search"),
       ),
     );
 
-    if (barcode == null) return;
+    if (barcode == null || barcode.isEmpty) return;
 
-    final inventoryProvider = context.read<InventoryProvider>();
-    try {
-      final match = inventoryProvider.inventory.firstWhere(
-        (item) => item.barcode == barcode,
-      );
+    setState(() {
+      _searchQuery = barcode;
+      _searchController.text = barcode;
+    });
+    
+    _loadInitialData(); // Apply search filter
 
-      if (!mounted) return;
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.white,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        builder: (context) => SellItemSheet(item: match),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("❌ Item not found with code: $barcode"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("🔍 Searching for: $barcode"),
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppColors.accent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // === 3. DELETE ITEM ===
@@ -980,6 +970,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // Increment existing cart entry
       existingItem.qty += 1;
       existingItem.profit = (existingItem.price - existingItem.actualPrice) * existingItem.qty;
+      existingItem.imagePath = item.imagePath; // Ensure image is synced
       existingItem.save(); 
       
       // Deduct from inventory stock (this triggers UI update via listener)
@@ -1010,6 +1001,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         size: item.size,
         subCategory: item.subCategory,
         weight: item.weight,
+        imagePath: item.imagePath,
       );
       
       // Deduct from inventory stock first to ensure immediate UI feedback

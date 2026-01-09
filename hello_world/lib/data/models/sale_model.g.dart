@@ -31,13 +31,14 @@ class SaleRecordAdapter extends TypeAdapter<SaleRecord> {
       size: fields[11] == null ? "N/A" : fields[11] as String,
       weight: fields[12] == null ? "N/A" : fields[12] as String,
       subCategory: fields[13] == null ? "N/A" : fields[13] as String,
+      imagePath: fields[14] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SaleRecord obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +66,9 @@ class SaleRecordAdapter extends TypeAdapter<SaleRecord> {
       ..writeByte(12)
       ..write(obj.weight)
       ..writeByte(13)
-      ..write(obj.subCategory);
+      ..write(obj.subCategory)
+      ..writeByte(14)
+      ..write(obj.imagePath);
   }
 
   @override

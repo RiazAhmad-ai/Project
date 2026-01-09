@@ -46,6 +46,9 @@ class SaleRecord extends HiveObject {
   @HiveField(13)
   late String subCategory;
 
+  @HiveField(14)
+  String? imagePath;
+
   SaleRecord({
     required this.id,
     required this.itemId,
@@ -61,5 +64,6 @@ class SaleRecord extends HiveObject {
     this.size = "N/A",
     this.weight = "N/A",
     this.subCategory = "N/A",
+    this.imagePath,
   });
 }
