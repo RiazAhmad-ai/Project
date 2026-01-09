@@ -26,13 +26,15 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       lowStockThreshold: fields[7] == null ? 5 : fields[7] as int,
       category: fields[8] == null ? "General" : fields[8] as String,
       size: fields[9] == null ? "N/A" : fields[9] as String,
+      weight: fields[10] == null ? "N/A" : fields[10] as String,
+      subCategory: fields[11] == null ? "N/A" : fields[11] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, InventoryItem obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +52,11 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       ..writeByte(8)
       ..write(obj.category)
       ..writeByte(9)
-      ..write(obj.size);
+      ..write(obj.size)
+      ..writeByte(10)
+      ..write(obj.weight)
+      ..writeByte(11)
+      ..write(obj.subCategory);
   }
 
   @override

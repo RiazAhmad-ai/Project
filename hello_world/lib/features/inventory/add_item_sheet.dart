@@ -16,7 +16,9 @@ class AddItemSheet extends StatefulWidget {
 class _AddItemSheetState extends State<AddItemSheet> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _subCategoryController = TextEditingController();
   final TextEditingController _sizeController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _stockController = TextEditingController(text: "1");
   final TextEditingController _descController = TextEditingController();
@@ -313,7 +315,9 @@ class _AddItemSheetState extends State<AddItemSheet> {
         barcode: _barcodeController.text.trim(),
         lowStockThreshold: int.tryParse(_thresholdController.text) ?? 5,
         category: _categoryController.text.trim().isEmpty ? "General" : _categoryController.text.trim(),
+        subCategory: _subCategoryController.text.trim().isEmpty ? "N/A" : _subCategoryController.text.trim(),
         size: _sizeController.text.trim().isEmpty ? "N/A" : _sizeController.text.trim(),
+        weight: _weightController.text.trim().isEmpty ? "N/A" : _weightController.text.trim(),
       );
 
       context.read<InventoryProvider>().addInventoryItem(newItem);
@@ -433,7 +437,7 @@ class _AddItemSheetState extends State<AddItemSheet> {
             ),
             const SizedBox(height: 12),
             
-            // Category and Size
+            // Category and Sub-Category
             Row(
               children: [
                 Expanded(
@@ -451,10 +455,43 @@ class _AddItemSheetState extends State<AddItemSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
+                    controller: _subCategoryController,
+                    decoration: InputDecoration(
+                      hintText: "Sub-Category",
+                      prefixIcon: const Icon(Icons.account_tree_outlined),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            
+            // Size and Weight
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
                     controller: _sizeController,
                     decoration: InputDecoration(
                       hintText: "Size",
                       prefixIcon: const Icon(Icons.straighten),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _weightController,
+                    decoration: InputDecoration(
+                      hintText: "Weight (e.g. 500g)",
+                      prefixIcon: const Icon(Icons.scale),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       filled: true,
                       fillColor: Colors.grey[100],

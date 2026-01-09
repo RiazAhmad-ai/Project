@@ -59,7 +59,9 @@ class _SellItemSheetState extends State<SellItemSheet> {
         profit: (salePrice - widget.item.price) * _sellQty,
         date: DateTime.now(),
         category: widget.item.category,
+        subCategory: widget.item.subCategory,
         size: widget.item.size,
+        weight: widget.item.weight,
       );
 
       context.read<SalesProvider>().addToCart(sale);
@@ -92,7 +94,9 @@ class _SellItemSheetState extends State<SellItemSheet> {
         profit: (salePrice - widget.item.price) * _sellQty,
         date: DateTime.now(),
         category: widget.item.category,
+        subCategory: widget.item.subCategory,
         size: widget.item.size,
+        weight: widget.item.weight,
       );
 
       context.read<SalesProvider>().addToCart(sale);
@@ -163,11 +167,23 @@ class _SellItemSheetState extends State<SellItemSheet> {
                           decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
                           child: Text(widget.item.category, style: const TextStyle(fontSize: 11, color: Colors.purple, fontWeight: FontWeight.bold)),
                         ),
+                      if (widget.item.subCategory != "N/A")
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                          child: Text(widget.item.subCategory, style: const TextStyle(fontSize: 11, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                        ),
                       if (widget.item.size != "N/A")
                         Container(
                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                            decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
                            child: Text("Size: ${widget.item.size}", style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold)),
+                        ),
+                      if (widget.item.weight != "N/A")
+                        Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                           decoration: BoxDecoration(color: Colors.teal.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                           child: Text("Weight: ${widget.item.weight}", style: const TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),

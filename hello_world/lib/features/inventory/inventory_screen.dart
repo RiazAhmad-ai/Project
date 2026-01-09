@@ -62,11 +62,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_selectedCategory != null && item.category != _selectedCategory) {
         return false;
       }
-      // Filter by Search (name, barcode, and category)
+      // Filter by Search (name, barcode, category, and subcategory)
       final query = _searchQuery.toLowerCase();
       return item.name.toLowerCase().contains(query) ||
           item.barcode.toLowerCase().contains(query) ||
-          item.category.toLowerCase().contains(query);
+          item.category.toLowerCase().contains(query) ||
+          item.subCategory.toLowerCase().contains(query);
     }).toList();
 
     allItems.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -87,11 +88,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_selectedCategory != null && item.category != _selectedCategory) {
         return false;
       }
-      // Filter by Search (name, barcode, and category)
+      // Filter by Search (name, barcode, category, and subcategory)
       final query = _searchQuery.toLowerCase();
       return item.name.toLowerCase().contains(query) ||
           item.barcode.toLowerCase().contains(query) ||
-          item.category.toLowerCase().contains(query);
+          item.category.toLowerCase().contains(query) ||
+          item.subCategory.toLowerCase().contains(query);
     }).toList();
 
     allItems.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -191,7 +193,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final stockCtrl = TextEditingController(text: item.stock.toString());
     final barcodeCtrl = TextEditingController(text: item.barcode);
     final categoryCtrl = TextEditingController(text: item.category);
+    final subCategoryCtrl = TextEditingController(text: item.subCategory);
     final sizeCtrl = TextEditingController(text: item.size);
+    final weightCtrl = TextEditingController(text: item.weight);
     final thresholdCtrl = TextEditingController(text: item.lowStockThreshold.toString());
 
     showModalBottomSheet(
@@ -277,7 +281,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   
                   const SizedBox(height: 20),
 
-                  // Category & Size Row
+                  // Category & Sub-Category Row
                   Row(
                     children: [
                       Expanded(
@@ -295,9 +299,37 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _buildSectionLabel("SUB-CATEGORY", Icons.account_tree_outlined),
+                            const SizedBox(height: 10),
+                            _buildStyledTextField(controller: subCategoryCtrl, hint: "N/A", icon: Icons.account_tree, iconColor: Colors.indigo),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Size & Weight Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             _buildSectionLabel("SIZE", Icons.straighten),
                             const SizedBox(height: 10),
                             _buildStyledTextField(controller: sizeCtrl, hint: "N/A", icon: Icons.format_size, iconColor: Colors.orange),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionLabel("WEIGHT", Icons.scale),
+                            const SizedBox(height: 10),
+                            _buildStyledTextField(controller: weightCtrl, hint: "e.g. 500g", icon: Icons.scale, iconColor: Colors.teal),
                           ],
                         ),
                       ),
@@ -392,7 +424,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               item.stock = int.tryParse(stockCtrl.text) ?? item.stock;
                               item.barcode = barcodeCtrl.text.trim();
                               item.category = categoryCtrl.text.trim().isEmpty ? "General" : categoryCtrl.text.trim();
+                              item.subCategory = subCategoryCtrl.text.trim().isEmpty ? "N/A" : subCategoryCtrl.text.trim();
                               item.size = sizeCtrl.text.trim().isEmpty ? "N/A" : sizeCtrl.text.trim();
+                              item.weight = weightCtrl.text.trim().isEmpty ? "N/A" : weightCtrl.text.trim();
                               item.lowStockThreshold = int.tryParse(thresholdCtrl.text) ?? item.lowStockThreshold;
                               item.save();
                               Navigator.pop(context);
@@ -708,11 +742,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                     ),
                                   ),
                                 ),
+                              if (item.subCategory != "N/A")
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                  child: Text(item.subCategory, style: const TextStyle(fontSize: 10, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                                ),
                               if (item.size != "N/A")
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                                   child: Text("Size: ${item.size}", style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                                ),
+                              if (item.weight != "N/A")
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.teal.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                  child: Text("Wt: ${item.weight}", style: const TextStyle(fontSize: 10, color: Colors.teal, fontWeight: FontWeight.bold)),
                                 ),
                             ],
                           ),

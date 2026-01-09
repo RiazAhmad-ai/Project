@@ -31,6 +31,12 @@ class InventoryItem extends HiveObject {
   @HiveField(9)
   late String size;
 
+  @HiveField(10)
+  late String weight;
+
+  @HiveField(11)
+  late String subCategory;
+
   InventoryItem({
     required this.id,
     required this.name,
@@ -41,5 +47,7 @@ class InventoryItem extends HiveObject {
     this.lowStockThreshold = 5,
     this.category = "General",
     this.size = "N/A",
+    this.weight = "N/A",
+    this.subCategory = "N/A",
   });
 }
