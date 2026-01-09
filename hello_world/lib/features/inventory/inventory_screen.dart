@@ -30,6 +30,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   static const int _pageSize = 20;
   bool _isLoadingMore = false;
   List<InventoryItem> _displayedItems = [];
+  int _lastKnownInventoryCount = 0;
 
   @override
   void initState() {
@@ -61,10 +62,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_selectedCategory != null && item.category != _selectedCategory) {
         return false;
       }
-      // Filter by Search
+      // Filter by Search (name, barcode, and category)
       final query = _searchQuery.toLowerCase();
       return item.name.toLowerCase().contains(query) ||
-          item.barcode.toLowerCase().contains(query);
+          item.barcode.toLowerCase().contains(query) ||
+          item.category.toLowerCase().contains(query);
     }).toList();
 
     allItems.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -85,9 +87,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (_selectedCategory != null && item.category != _selectedCategory) {
         return false;
       }
+      // Filter by Search (name, barcode, and category)
       final query = _searchQuery.toLowerCase();
       return item.name.toLowerCase().contains(query) ||
-          item.barcode.toLowerCase().contains(query);
+          item.barcode.toLowerCase().contains(query) ||
+          item.category.toLowerCase().contains(query);
     }).toList();
 
     allItems.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -165,6 +169,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   // === 3. DELETE ITEM ===
   void _deleteItem(InventoryItem item) {
+    // First remove from displayed list to prevent Dismissible conflict
+    setState(() {
+      _displayedItems.removeWhere((i) => i.id == item.id);
+      _lastKnownInventoryCount--; // Prevent reload trigger
+    });
+    // Then delete from database
     item.delete();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -431,10 +441,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use Selector for targeted rebuilds - only rebuild when inventory changes
-    return Selector<InventoryProvider, int>(
-      selector: (_, provider) => provider.inventory.length,
-      builder: (context, inventoryLength, _) {
+    // Use Consumer to rebuild when inventory changes
+    return Consumer<InventoryProvider>(
+      builder: (context, inventoryProvider, _) {
+        // Check if inventory count changed (item added/deleted)
+        final currentInventoryCount = inventoryProvider.inventory.length;
+        if (currentInventoryCount != _lastKnownInventoryCount) {
+          _lastKnownInventoryCount = currentInventoryCount;
+          // Schedule reload after this frame
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _loadInitialData();
+          });
+        }
         final settingsProvider = context.watch<SettingsProvider>();
         
         return Scaffold(
@@ -473,9 +491,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         Expanded(
                           child: TextField(
                         controller: _searchController,
-                        onChanged: (val) => setState(() => _searchQuery = val),
+                        onChanged: (val) {
+                          setState(() => _searchQuery = val);
+                          _loadInitialData();
+                        },
                         decoration: InputDecoration(
-                          hintText: "Search by Name or Code...",
+                          hintText: "Search by Name, Code or Category...",
                           prefixIcon: const Icon(Icons.search),
                           filled: true,
                           fillColor: Colors.grey[100],
@@ -509,6 +530,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             setState(() {
                               _selectedCategory = null;
                             });
+                            _loadInitialData();
                           },
                           deleteIcon: const Icon(Icons.close, size: 16, color: Colors.white),
                         ),
@@ -657,6 +679,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                       _searchController.clear();
                                       _searchQuery = "";
                                     });
+                                    _loadInitialData();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text("Filtered by ${item.category}"), duration: const Duration(seconds: 1)),
                                     );

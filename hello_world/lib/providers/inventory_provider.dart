@@ -38,14 +38,20 @@ class InventoryProvider extends ChangeNotifier {
 
   void addInventoryItem(InventoryItem item) {
     _inventoryBox.put(item.id, item);
+    _inventoryDirty = true;
+    notifyListeners();
   }
 
   void updateInventoryItem(InventoryItem item) {
     item.save();
+    _inventoryDirty = true;
+    notifyListeners();
   }
 
   void deleteInventoryItem(InventoryItem item) {
     item.delete();
+    _inventoryDirty = true;
+    notifyListeners();
   }
 
   void addDamageRecord(DamageRecord record) {
