@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:rsellx/data/models/inventory_model.dart';
@@ -12,27 +13,42 @@ class SalesProvider extends ChangeNotifier {
   
   // Analytics Cache to prevent re-calc on every build
   final Map<String, Map<String, dynamic>> _analyticsCache = {};
+  
+  // Stream subscriptions for proper cleanup
+  StreamSubscription? _historyBoxSubscription;
+  StreamSubscription? _cartBoxSubscription;
+  StreamSubscription? _expensesBoxSubscription;
+  StreamSubscription? _damageBoxSubscription;
 
   SalesProvider() {
-    _historyBox.watch().listen((_) {
+    _historyBoxSubscription = _historyBox.watch().listen((_) {
       _historyDirty = true;
       _analyticsCache.clear(); // Invalidate analytics cache
       notifyListeners();
     });
-    _cartBox.watch().listen((_) {
+    _cartBoxSubscription = _cartBox.watch().listen((_) {
       notifyListeners();
     });
-    _expensesBox.watch().listen((_) {
+    _expensesBoxSubscription = _expensesBox.watch().listen((_) {
       _analyticsCache.clear(); // Expenses affect analytics too
       notifyListeners();
     });
-    _damageBox.watch().listen((_) {
+    _damageBoxSubscription = _damageBox.watch().listen((_) {
       _analyticsCache.clear(); // Damage affects profit too
       notifyListeners();
     });
     
     // Initial Load
     _refreshCache();
+  }
+  
+  @override
+  void dispose() {
+    _historyBoxSubscription?.cancel();
+    _cartBoxSubscription?.cancel();
+    _expensesBoxSubscription?.cancel();
+    _damageBoxSubscription?.cancel();
+    super.dispose();
   }
 
   Box<SaleRecord> get _historyBox => Hive.box<SaleRecord>('historyBox');
@@ -220,43 +236,59 @@ class SalesProvider extends ChangeNotifier {
     final items = _cartBox.values.toList();
     final now = DateTime.now();
 
-    for (var item in items) {
-      final historyRecord = SaleRecord(
-        id: "hist_${item.id}_${now.millisecondsSinceEpoch}",
-        itemId: item.itemId,
-        name: item.name,
-        price: item.price,
-        actualPrice: item.actualPrice,
-        qty: item.qty,
-        profit: item.profit,
-        date: now,
-        status: "Sold",
-        billId: billId,
-      );
+    try {
+      // Batch all put operations for atomicity
+      final List<Future<void>> putOperations = [];
+
+      for (var item in items) {
+        final historyRecord = SaleRecord(
+          id: "hist_${item.id}_${now.millisecondsSinceEpoch}",
+          itemId: item.itemId,
+          name: item.name,
+          price: item.price,
+          actualPrice: item.actualPrice,
+          qty: item.qty,
+          profit: item.profit,
+          date: now,
+          status: "Sold",
+          billId: billId,
+        );
+        
+        putOperations.add(_historyBox.put(historyRecord.id, historyRecord));
+        
+        // Stock already deducted during addToCart/qty increment
+      }
       
-      // We wait for puts to ensure data integrity
-      await _historyBox.put(historyRecord.id, historyRecord);
+      if (discount > 0) {
+        final discountRecord = SaleRecord(
+          id: "disc_${billId}_${now.millisecondsSinceEpoch}",
+          itemId: "DISCOUNT",
+          name: "Discount Applied",
+          price: -discount,
+          actualPrice: 0,
+          qty: 1,
+          profit: -discount,
+          date: now,
+          status: "Sold",
+          billId: billId,
+        );
+        putOperations.add(_historyBox.put(discountRecord.id, discountRecord));
+      }
       
-      // Stock already deducted during addToCart/qty increment
+      // Wait for ALL operations to complete before clearing cart
+      await Future.wait(putOperations);
+      
+      // Only clear cart if all history records saved successfully
+      await _cartBox.clear();
+      
+    } catch (e, stackTrace) {
+      // Log error but don't clear cart - user can retry
+      if (kDebugMode) {
+        print("Checkout failed: $e");
+        print(stackTrace);
+      }
+      rethrow; // Let UI handle the error
     }
-    
-    if (discount > 0) {
-      final discountRecord = SaleRecord(
-        id: "disc_${billId}_${now.millisecondsSinceEpoch}",
-        itemId: "DISCOUNT",
-        name: "Discount Applied",
-        price: -discount,
-        actualPrice: 0,
-        qty: 1,
-        profit: -discount,
-        date: now,
-        status: "Sold",
-        billId: billId,
-      );
-      await _historyBox.put(discountRecord.id, discountRecord);
-    }
-    
-    await _cartBox.clear();
   }
 
   // === ANALYTICS (OPTIMIZED) ===
@@ -281,36 +313,48 @@ class SalesProvider extends ChangeNotifier {
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   Map<String, dynamic> _getWeeklyData() {
-    List<double> sales = [], expenses = [], profit = [];
+    // Pre-allocate arrays for better performance
+    List<double> sales = List.filled(7, 0.0);
+    List<double> expenses = List.filled(7, 0.0);
+    List<double> profit = List.filled(7, 0.0);
+    List<double> damage = List.filled(7, 0.0);
     List<String> labels = [];
     DateTime now = DateTime.now();
-    List<double> damage = []; 
+    
+    // SINGLE PASS through history - O(n) instead of O(n×7)
+    for (var item in _validHistory) {
+      int daysDiff = now.difference(item.date).inDays;
+      if (daysDiff >= 0 && daysDiff < 7) {
+        int index = 6 - daysDiff;
+        sales[index] += (item.price * item.qty);
+        profit[index] += item.profit;
+      }
+    }
+
+    // SINGLE PASS through expenses - O(m) instead of O(m×7)
+    for (var exp in _expensesBox.values) {
+      int daysDiff = now.difference(exp.date).inDays;
+      if (daysDiff >= 0 && daysDiff < 7) {
+        int index = 6 - daysDiff;
+        expenses[index] += exp.amount;
+        profit[index] -= exp.amount;
+      }
+    }
+
+    // SINGLE PASS through damage - O(p) instead of O(p×7)
+    for (var dmg in _damageBox.values) {
+      int daysDiff = now.difference(dmg.date).inDays;
+      if (daysDiff >= 0 && daysDiff < 7) {
+        int index = 6 - daysDiff;
+        damage[index] += dmg.lossAmount;
+        profit[index] -= dmg.lossAmount;
+      }
+    }
+    
+    // Generate labels
     for (int i = 6; i >= 0; i--) {
       DateTime date = now.subtract(Duration(days: i));
       labels.add(["M", "T", "W", "T", "F", "S", "S"][date.weekday - 1]);
-
-      double daySales = 0.0;
-      double dayItemProfit = 0.0;
-      
-      for (var item in _validHistory) {
-        if (_isSameDay(date, item.date)) {
-          daySales += (item.price * item.qty);
-          dayItemProfit += item.profit;
-        }
-      }
-
-      double dayExpenses = _expensesBox.values
-          .where((e) => _isSameDay(date, e.date))
-          .fold(0.0, (sum, item) => sum + item.amount);
-
-      double dayDamage = _damageBox.values
-          .where((d) => _isSameDay(date, d.date))
-          .fold(0.0, (sum, item) => sum + item.lossAmount);
-      
-      sales.add(daySales);
-      expenses.add(dayExpenses);
-      damage.add(dayDamage); 
-      profit.add(dayItemProfit - dayExpenses - dayDamage);
     }
 
     double totalSales = sales.fold(0, (a, b) => a + b);
@@ -330,42 +374,46 @@ class SalesProvider extends ChangeNotifier {
   }
 
   Map<String, dynamic> _getMonthlyData() {
-    List<double> sales = [], expenses = [], profit = [];
+    // Pre-allocate arrays
+    List<double> sales = List.filled(4, 0.0);
+    List<double> expenses = List.filled(4, 0.0);
+    List<double> profit = List.filled(4, 0.0);
+    List<double> damage = List.filled(4, 0.0);
     List<String> labels = ["W1", "W2", "W3", "W4"];
     DateTime now = DateTime.now();
-    List<double> damage = [];
-    for (int i = 3; i >= 0; i--) {
-      DateTime end = now.subtract(Duration(days: i * 7));
-      DateTime start = end.subtract(const Duration(days: 7));
+    
+    // Helper to find week index (0-3) from date
+    int getWeekIndex(DateTime date) {
+      int daysDiff = now.difference(date).inDays;
+      if (daysDiff < 0 || daysDiff >= 28) return -1;
+      return 3 - (daysDiff ~/ 7);
+    }
 
-      double periodSales = 0.0;
-      double periodItemProfit = 0.0;
-      double periodExpenses = 0.0;
-      double periodDamage = 0.0;
-
-      for (var item in _validHistory) {
-        if (item.date.isAfter(start) && item.date.isBefore(end.add(const Duration(seconds: 1)))) {
-          periodSales += (item.price * item.qty);
-          periodItemProfit += item.profit;
-        }
+    // SINGLE PASS through history
+    for (var item in _validHistory) {
+      int weekIndex = getWeekIndex(item.date);
+      if (weekIndex >= 0) {
+        sales[weekIndex] += (item.price * item.qty);
+        profit[weekIndex] += item.profit;
       }
+    }
 
-      for (var exp in _expensesBox.values) {
-        if (exp.date.isAfter(start) && exp.date.isBefore(end.add(const Duration(seconds: 1)))) {
-          periodExpenses += exp.amount;
-        }
+    // SINGLE PASS through expenses
+    for (var exp in _expensesBox.values) {
+      int weekIndex = getWeekIndex(exp.date);
+      if (weekIndex >= 0) {
+        expenses[weekIndex] += exp.amount;
+        profit[weekIndex] -= exp.amount;
       }
+    }
 
-      for (var dmg in _damageBox.values) {
-        if (dmg.date.isAfter(start) && dmg.date.isBefore(end.add(const Duration(seconds: 1)))) {
-          periodDamage += dmg.lossAmount;
-        }
+    // SINGLE PASS through damage
+    for (var dmg in _damageBox.values) {
+      int weekIndex = getWeekIndex(dmg.date);
+      if (weekIndex >= 0) {
+        damage[weekIndex] += dmg.lossAmount;
+        profit[weekIndex] -= dmg.lossAmount;
       }
-
-      sales.add(periodSales);
-      expenses.add(periodExpenses);
-      damage.add(periodDamage); 
-      profit.add(periodItemProfit - periodExpenses - periodDamage);
     }
 
     double totalSales = sales.fold(0, (a, b) => a + b);
@@ -385,39 +433,37 @@ class SalesProvider extends ChangeNotifier {
   }
 
   Map<String, dynamic> _getAnnualData() {
-    List<double> sales = [], expenses = [], profit = [];
+    // Pre-allocate arrays for 12 months
+    List<double> sales = List.filled(12, 0.0);
+    List<double> expenses = List.filled(12, 0.0);
+    List<double> profit = List.filled(12, 0.0);
+    List<double> damage = List.filled(12, 0.0);
     List<String> labels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
     int currentYear = DateTime.now().year;
-    List<double> damage = [];
-    for (int m = 1; m <= 12; m++) {
-      double monthSales = 0.0;
-      double monthItemProfit = 0.0;
-      double monthExpenses = 0.0;
-      double monthDamage = 0.0;
 
-      for (var item in _validHistory) {
-        if (item.date.year == currentYear && item.date.month == m) {
-          monthSales += (item.price * item.qty);
-          monthItemProfit += item.profit;
-        }
+    // SINGLE PASS with month-based indexing
+    for (var item in _validHistory) {
+      if (item.date.year == currentYear) {
+        int monthIndex = item.date.month - 1;
+        sales[monthIndex] += (item.price * item.qty);
+        profit[monthIndex] += item.profit;
       }
+    }
 
-      for (var exp in _expensesBox.values) {
-        if (exp.date.year == currentYear && exp.date.month == m) {
-          monthExpenses += exp.amount;
-        }
+    for (var exp in _expensesBox.values) {
+      if (exp.date.year == currentYear) {
+        int monthIndex = exp.date.month - 1;
+        expenses[monthIndex] += exp.amount;
+        profit[monthIndex] -= exp.amount;
       }
+    }
 
-      for (var dmg in _damageBox.values) {
-        if (dmg.date.year == currentYear && dmg.date.month == m) {
-          monthDamage += dmg.lossAmount;
-        }
+    for (var dmg in _damageBox.values) {
+      if (dmg.date.year == currentYear) {
+        int monthIndex = dmg.date.month - 1;
+        damage[monthIndex] += dmg.lossAmount;
+        profit[monthIndex] -= dmg.lossAmount;
       }
-
-      sales.add(monthSales);
-      expenses.add(monthExpenses);
-      damage.add(monthDamage); 
-      profit.add(monthItemProfit - monthExpenses - monthDamage);
     }
 
     double totalSales = sales.fold(0, (a, b) => a + b);

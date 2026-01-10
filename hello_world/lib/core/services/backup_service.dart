@@ -8,6 +8,7 @@ import '../../data/models/inventory_model.dart';
 import '../../data/models/sale_model.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/models/credit_model.dart';
+import 'logger_service.dart';
 
 class BackupService {
   static Future<void> exportBackup() async {
@@ -104,8 +105,8 @@ class BackupService {
           box.put(item['id'], InventoryItem(
             id: item['id'],
             name: item['name'],
-            price: (item['price'] as num).toDouble(),
-            stock: (item['stock'] as num).toInt(),
+            price: ((item['price'] as num?)?.toDouble()) ?? 0.0,
+            stock: ((item['stock'] as num?)?.toInt()) ?? 0,
             description: item['description'],
             barcode: item['barcode'],
           ));
@@ -121,10 +122,10 @@ class BackupService {
             id: item['id'],
             itemId: item['itemId'],
             name: item['name'],
-            price: (item['price'] as num).toDouble(),
-            actualPrice: (item['actualPrice'] as num).toDouble(),
-            qty: (item['qty'] as num).toInt(),
-            profit: (item['profit'] as num).toDouble(),
+            price: ((item['price'] as num?)?.toDouble()) ?? 0.0,
+            actualPrice: ((item['actualPrice'] as num?)?.toDouble()) ?? 0.0,
+            qty: ((item['qty'] as num?)?.toInt()) ?? 1,
+            profit: ((item['profit'] as num?)?.toDouble()) ?? 0.0,
             date: DateTime.parse(item['date']),
             status: item['status'],
             billId: item['billId'],
@@ -140,7 +141,7 @@ class BackupService {
           box.put(item['id'], ExpenseItem(
             id: item['id'],
             title: item['title'],
-            amount: (item['amount'] as num).toDouble(),
+            amount: ((item['amount'] as num?)?.toDouble()) ?? 0.0,
             date: DateTime.parse(item['date']),
             category: item['category'],
           ));
@@ -156,10 +157,10 @@ class BackupService {
             id: item['id'],
             itemId: item['itemId'],
             name: item['name'],
-            price: (item['price'] as num).toDouble(),
-            actualPrice: (item['actualPrice'] as num).toDouble(),
-            qty: (item['qty'] as num).toInt(),
-            profit: (item['profit'] as num).toDouble(),
+            price: ((item['price'] as num?)?.toDouble()) ?? 0.0,
+            actualPrice: ((item['actualPrice'] as num?)?.toDouble()) ?? 0.0,
+            qty: ((item['qty'] as num?)?.toInt()) ?? 1,
+            profit: ((item['profit'] as num?)?.toDouble()) ?? 0.0,
             date: DateTime.parse(item['date']),
             status: item['status'],
             billId: item['billId'],
@@ -176,13 +177,13 @@ class BackupService {
             id: item['id'],
             name: item['name'],
             phone: item['phone'],
-            amount: (item['amount'] as num).toDouble(),
+            amount: ((item['amount'] as num?)?.toDouble()) ?? 0.0,
             date: DateTime.parse(item['date']),
             type: item['type'],
             isSettled: item['isSettled'] ?? false,
             description: item['description'],
             dueDate: item['dueDate'] != null ? DateTime.parse(item['dueDate']) : null,
-            paidAmount: (item['paidAmount'] as num?)?.toDouble() ?? 0.0,
+            paidAmount: ((item['paidAmount'] as num?)?.toDouble()) ?? 0.0,
             logs: (item['logs'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
           ));
         }
@@ -208,7 +209,7 @@ class BackupService {
                settings['logoPath'] = file.path; 
              }
            } catch (e) {
-             print("Error restoring logo: $e");
+             AppLogger.error("Error restoring logo", error: e);
            }
            // Remove data key so we don't store it in Hive
            settings.remove('logo_base64'); 
@@ -237,7 +238,7 @@ class BackupService {
             final base64Image = base64Encode(bytes);
             settingsMap['logo_base64'] = base64Image;
           } catch (e) {
-            print("Failed to encode logo: $e");
+            AppLogger.error("Failed to encode logo", error: e);
           }
         }
       }

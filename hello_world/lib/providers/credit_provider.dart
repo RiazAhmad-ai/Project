@@ -1,9 +1,23 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'dart:math';
 import '../data/models/credit_model.dart';
 
 class CreditProvider extends ChangeNotifier {
+  // Stream subscription for proper cleanup
+  StreamSubscription? _creditsBoxSubscription;
+  
+  CreditProvider() {
+    _creditsBoxSubscription = _box.watch().listen((_) => notifyListeners());
+  }
+  
+  @override
+  void dispose() {
+    _creditsBoxSubscription?.cancel();
+    super.dispose();
+  }
+  
   Box<CreditRecord> get _box => Hive.box<CreditRecord>('creditsBox');
 
   List<CreditRecord> get allRecords {

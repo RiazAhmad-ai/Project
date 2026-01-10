@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:rsellx/data/models/inventory_model.dart';
@@ -6,17 +7,28 @@ import 'package:rsellx/data/models/damage_model.dart';
 class InventoryProvider extends ChangeNotifier {
   List<InventoryItem> _cachedInventory = [];
   bool _inventoryDirty = true;
+  
+  // Stream subscriptions for proper cleanup
+  StreamSubscription? _inventoryBoxSubscription;
+  StreamSubscription? _damageBoxSubscription;
 
   InventoryProvider() {
-    _inventoryBox.watch().listen((_) {
+    _inventoryBoxSubscription = _inventoryBox.watch().listen((_) {
       _inventoryDirty = true;
       notifyListeners();
     });
-    _damageBox.watch().listen((_) {
+    _damageBoxSubscription = _damageBox.watch().listen((_) {
       notifyListeners();
     });
     // Initial load
     _refreshCache();
+  }
+  
+  @override
+  void dispose() {
+    _inventoryBoxSubscription?.cancel();
+    _damageBoxSubscription?.cancel();
+    super.dispose();
   }
 
   Box<InventoryItem> get _inventoryBox => Hive.box<InventoryItem>('inventoryBox');

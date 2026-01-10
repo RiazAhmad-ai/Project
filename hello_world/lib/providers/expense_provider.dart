@@ -1,10 +1,20 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:rsellx/data/models/expense_model.dart';
 
 class ExpenseProvider extends ChangeNotifier {
+  // Stream subscription for proper cleanup
+  StreamSubscription? _expensesBoxSubscription;
+  
   ExpenseProvider() {
-    _expensesBox.watch().listen((_) => notifyListeners());
+    _expensesBoxSubscription = _expensesBox.watch().listen((_) => notifyListeners());
+  }
+  
+  @override
+  void dispose() {
+    _expensesBoxSubscription?.cancel();
+    super.dispose();
   }
 
   Box<ExpenseItem> get _expensesBox => Hive.box<ExpenseItem>('expensesBox');
