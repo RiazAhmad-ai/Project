@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -5,10 +6,13 @@ import '../dashboard/dashboard_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../history/history_screen.dart';
 import '../expenses/expense_screen.dart';
+import 'package:rsellx/core/utils/fuzzy_search.dart';
 import '../../data/models/inventory_model.dart';
+import '../../data/models/sale_model.dart';
 import '../inventory/sell_item_sheet.dart';
 import '../../shared/widgets/full_scanner_screen.dart';
 import '../../core/utils/manual_text_input.dart';
+import '../../core/utils/smart_search_input.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../cart/cart_screen.dart';
@@ -91,59 +95,74 @@ class _MainScreenState extends State<MainScreen> {
 
 
   // === MANUAL TEXT INPUT (SWIPE UP) ===
-  void _openManualTextInput() async {
-    final String? text = await showManualTextInput(
+  // === SUPER SMART MANUAL SEARCH (Unified) ===
+  Future<void> _openManualTextInput() async {
+    final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+    
+    await showSmartSearchInput(
       context,
-      hintText: 'Enter product name or barcode...',
+      inventory: inventoryProvider.inventory,
+    );
+    
+    // No action needed - modal handles everything internally
+    // Modal stays open until user explicitly closes it
+  }
+
+  void _openSellSheet(InventoryItem item) async {
+    if (!mounted) return;
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      builder: (context) => SellItemSheet(item: item),
     );
 
-    if (text != null && text.isNotEmpty) {
-      final cleanText = text.replaceAll('\n', ' ').trim();
-      ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(content: Text("Searching for: $cleanText..."), duration: const Duration(seconds: 1)),
+    if (result == "VIEW_CART") {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const CartScreen()),
       );
-      
-      final inventory = context.read<InventoryProvider>();
-      InventoryItem? match = inventory.findItemByBarcode(cleanText); // Exact match check first
-
-      // If no barcode match, try searching by name (first match)
-      if (match == null) {
-          try {
-             match = inventory.inventory.firstWhere((item) => item.name.toLowerCase().contains(cleanText.toLowerCase()));
-          } catch (e) {
-             match = null;
-          }
-      }
-
-      if (match != null) {
-          if (!mounted) return;
-          final result = await showModalBottomSheet<String>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.white,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            ),
-            builder: (context) => SellItemSheet(item: match!),
-          );
-
-          if (result == "VIEW_CART") {
-            if (!mounted) return;
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const CartScreen()),
-            );
-          }
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("❌ No item found matching: $cleanText"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
+  }
+
+  void _showImagePreview(BuildContext context, String imagePath, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                ),
+              ],
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: Image.file(
+                File(imagePath),
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -455,4 +474,11 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
+}
+
+// Helper class for smart sorting
+class _ScoredItem {
+  final InventoryItem item;
+  final int score;
+  _ScoredItem(this.item, this.score);
 }

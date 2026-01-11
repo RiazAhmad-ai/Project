@@ -22,25 +22,52 @@ class SalesProvider extends ChangeNotifier {
   StreamSubscription? _damageBoxSubscription;
 
   SalesProvider() {
-    _historyBoxSubscription = _historyBox.watch().listen((_) {
-      _historyDirty = true;
-      _analyticsCache.clear(); // Invalidate analytics cache
-      notifyListeners();
-    });
-    _cartBoxSubscription = _cartBox.watch().listen((_) {
-      notifyListeners();
-    });
-    _expensesBoxSubscription = _expensesBox.watch().listen((_) {
-      _analyticsCache.clear(); // Expenses affect analytics too
-      notifyListeners();
-    });
-    _damageBoxSubscription = _damageBox.watch().listen((_) {
-      _analyticsCache.clear(); // Damage affects profit too
-      notifyListeners();
-    });
-    
-    // Initial Load
-    _refreshCache();
+    _initializeListeners();
+  }
+  
+  void _initializeListeners() {
+    try {
+      if (Hive.isBoxOpen('historyBox')) {
+        _historyBoxSubscription = _historyBox.watch().listen((_) {
+          _historyDirty = true;
+          _analyticsCache.clear();
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('SalesProvider history stream error: $error');
+        });
+      }
+      
+      if (Hive.isBoxOpen('cartBox')) {
+        _cartBoxSubscription = _cartBox.watch().listen((_) {
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('SalesProvider cart stream error: $error');
+        });
+      }
+      
+      if (Hive.isBoxOpen('expensesBox')) {
+        _expensesBoxSubscription = _expensesBox.watch().listen((_) {
+          _analyticsCache.clear();
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('SalesProvider expenses stream error: $error');
+        });
+      }
+      
+      if (Hive.isBoxOpen('damageBox')) {
+        _damageBoxSubscription = _damageBox.watch().listen((_) {
+          _analyticsCache.clear();
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('SalesProvider damage stream error: $error');
+        });
+      }
+      
+      // Initial Load
+      _refreshCache();
+    } catch (e) {
+      debugPrint('SalesProvider initialization error: $e');
+    }
   }
   
   @override
@@ -214,7 +241,7 @@ class SalesProvider extends ChangeNotifier {
     item.qty = newQty;
     item.profit = (item.price - item.actualPrice) * newQty;
     item.save();
-    notifyListeners();
+    // Stream subscription will trigger notifyListeners
     return true;
   }
 

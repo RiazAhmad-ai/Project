@@ -13,15 +13,33 @@ class InventoryProvider extends ChangeNotifier {
   StreamSubscription? _damageBoxSubscription;
 
   InventoryProvider() {
-    _inventoryBoxSubscription = _inventoryBox.watch().listen((_) {
-      _inventoryDirty = true;
-      notifyListeners();
-    });
-    _damageBoxSubscription = _damageBox.watch().listen((_) {
-      notifyListeners();
-    });
-    // Initial load
-    _refreshCache();
+    _initializeListeners();
+  }
+  
+  void _initializeListeners() {
+    try {
+      if (Hive.isBoxOpen('inventoryBox')) {
+        _inventoryBoxSubscription = _inventoryBox.watch().listen((_) {
+          _inventoryDirty = true;
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('InventoryProvider inventory stream error: $error');
+        });
+      }
+      
+      if (Hive.isBoxOpen('damageBox')) {
+        _damageBoxSubscription = _damageBox.watch().listen((_) {
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('InventoryProvider damage stream error: $error');
+        });
+      }
+      
+      // Initial load
+      _refreshCache();
+    } catch (e) {
+      debugPrint('InventoryProvider initialization error: $e');
+    }
   }
   
   @override
@@ -50,20 +68,17 @@ class InventoryProvider extends ChangeNotifier {
 
   void addInventoryItem(InventoryItem item) {
     _inventoryBox.put(item.id, item);
-    _inventoryDirty = true;
-    notifyListeners();
+    // Stream subscription will trigger notifyListeners
   }
 
   void updateInventoryItem(InventoryItem item) {
     item.save();
-    _inventoryDirty = true;
-    notifyListeners();
+    // Stream subscription will trigger notifyListeners
   }
 
   void deleteInventoryItem(InventoryItem item) {
     item.delete();
-    _inventoryDirty = true;
-    notifyListeners();
+    // Stream subscription will trigger notifyListeners
   }
 
   void addDamageRecord(DamageRecord record) {

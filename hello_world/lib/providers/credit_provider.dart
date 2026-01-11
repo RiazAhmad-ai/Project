@@ -9,7 +9,21 @@ class CreditProvider extends ChangeNotifier {
   StreamSubscription? _creditsBoxSubscription;
   
   CreditProvider() {
-    _creditsBoxSubscription = _box.watch().listen((_) => notifyListeners());
+    _initializeListener();
+  }
+  
+  void _initializeListener() {
+    try {
+      if (Hive.isBoxOpen('creditsBox')) {
+        _creditsBoxSubscription = _box.watch().listen((_) {
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('CreditProvider stream error: $error');
+        });
+      }
+    } catch (e) {
+      debugPrint('CreditProvider initialization error: $e');
+    }
   }
   
   @override
@@ -51,7 +65,11 @@ class CreditProvider extends ChangeNotifier {
   double get totalToPay => payables.fold(0, (sum, item) => sum + item.balance);
 
   String _generateId() {
-    return DateTime.now().millisecondsSinceEpoch.toString() + Random().nextInt(1000).toString();
+    // Use timestamp + random for better uniqueness
+    // Alternative: Use UUID package for guaranteed uniqueness
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    final random = Random().nextInt(999999);
+    return 'credit_${timestamp}_$random';
   }
 
   Future<void> addCredit({
@@ -62,19 +80,25 @@ class CreditProvider extends ChangeNotifier {
     String? description,
     DateTime? dueDate,
   }) async {
-    final record = CreditRecord(
-      id: _generateId(),
-      name: name,
-      phone: phone,
-      amount: amount,
-      date: DateTime.now(),
-      type: type,
-      description: description,
-      dueDate: dueDate,
-      isSettled: false,
-    );
-    await _box.add(record);
-    notifyListeners();
+    try {
+      final record = CreditRecord(
+        id: _generateId(),
+        name: name,
+        phone: phone,
+        amount: amount,
+        date: DateTime.now(),
+        type: type,
+        description: description,
+        dueDate: dueDate,
+        isSettled: false,
+      );
+      // Use put() instead of add() to use our generated ID
+      await _box.put(record.id, record);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error adding credit: $e');
+      rethrow;
+    }
   }
 
   Future<void> settleRecord(CreditRecord record) async {

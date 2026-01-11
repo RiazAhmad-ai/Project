@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1132,10 +1133,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
     
     // Check if item is available in stock
     if (item.stock <= 0) {
+      HapticFeedback.mediumImpact();
+      if (!mounted) return;
+      
+      // Play error beep
+      _audioPlayer.play(AssetSource('scanner_beep.mp3'));
+      
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("❌ Out of stock!"),
-          duration: Duration(milliseconds: 800),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              Text("${item.name} is out of stock!"),
+            ],
+          ),
+          duration: const Duration(milliseconds: 700),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1163,10 +1177,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
       item.stock -= 1;
       item.save(); 
       
+      HapticFeedback.lightImpact();
+      if (!mounted) return;
+      
+      // Play success beep
+      _audioPlayer.play(AssetSource('scanner_beep.mp3'));
+      
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("🛒 ${item.name} x${existingItem.qty}"),
-          duration: const Duration(milliseconds: 600),
+          content: Row(
+            children: [
+              const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
+              const SizedBox(width: 12),
+              Text("🛒 ${item.name} x${existingItem.qty}"),
+            ],
+          ),
+          duration: const Duration(milliseconds: 400),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1198,10 +1225,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // but since item is already updated/saved, it will see the new value or we can clean up provider logic)
       salesProvider.addToCartSilent(cartItem);
       
+      HapticFeedback.lightImpact();
+      if (!mounted) return;
+      
+      // Play success beep
+      _audioPlayer.play(AssetSource('scanner_beep.mp3'));
+      
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("🛒 ${item.name} added!"),
-          duration: const Duration(milliseconds: 600),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 12),
+              Text("🛒 ${item.name} added!"),
+            ],
+          ),
+          duration: const Duration(milliseconds: 400),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),

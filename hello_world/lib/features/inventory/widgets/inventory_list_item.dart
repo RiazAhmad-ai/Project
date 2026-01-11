@@ -144,32 +144,61 @@ class InventoryListItem extends StatelessWidget {
                 ),
               ),
               
-              // Right: Stock
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: lowStock ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      "${item.stock}", 
-                      style: TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold, 
-                        color: lowStock ? AppColors.error : AppColors.success,
+              // Right: Stock with OUT OF STOCK overlay
+              Stack(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: lowStock ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          "${item.stock}", 
+                          style: TextStyle(
+                            fontSize: 18, 
+                            fontWeight: FontWeight.bold, 
+                            color: lowStock ? AppColors.error : AppColors.success,
+                          ),
+                        ),
+                        Text(
+                          "Stock", 
+                          style: TextStyle(
+                            fontSize: 8, 
+                            color: lowStock ? AppColors.error : AppColors.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // OUT OF STOCK overlay
+                  if (item.stock <= 0)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(2.0),
+                            child: Text(
+                              "OUT\nOF\nSTOCK",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 7,
+                                fontWeight: FontWeight.bold,
+                                height: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    Text(
-                      "Stock", 
-                      style: TextStyle(
-                        fontSize: 8, 
-                        color: lowStock ? AppColors.error : AppColors.success,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ],
           ),

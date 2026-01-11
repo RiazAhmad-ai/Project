@@ -578,30 +578,57 @@ class _CartScreenState extends State<CartScreen> {
                           elevation: 2,
                         ),
                         onPressed: () async {
-                          final cartItems = List<SaleRecord>.from(salesProvider.cart);
-                          final billId = "BILL-${DateTime.now().millisecondsSinceEpoch}";
-                          
-                          // Pass discount to checkout logic
-                          await salesProvider.checkoutCart(discount: _discount);
-                          
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Sale completed successfully! ✅"),
-                                backgroundColor: AppColors.success,
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
+                          try {
+                            final cartItems = List<SaleRecord>.from(salesProvider.cart);
+                            final billId = "BILL-${DateTime.now().millisecondsSinceEpoch}";
+                            
+                            // Pass discount to checkout logic
+                            await salesProvider.checkoutCart(discount: _discount);
+                            
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Sale completed successfully! ✅"),
+                                  backgroundColor: AppColors.success,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
 
-                            if (_shouldPrintInvoice) {
-                              ReportingService.generateInvoice(
-                                shopName: settingsProvider.shopName,
-                                address: settingsProvider.address,
-                                items: cartItems,
-                                billId: billId,
-                                discount: _discount,
-                                paperFormat: _paperSize == "80mm" ? PdfPageFormat.roll80 : PdfPageFormat.roll57,
+                              if (_shouldPrintInvoice) {
+                                try {
+                                  await ReportingService.generateInvoice(
+                                    shopName: settingsProvider.shopName,
+                                    address: settingsProvider.address,
+                                    items: cartItems,
+                                    billId: billId,
+                                    discount: _discount,
+                                    paperFormat: _paperSize == "80mm" ? PdfPageFormat.roll80 : PdfPageFormat.roll57,
+                                  );
+                                } catch (e) {
+                                  // Invoice generation failed but sale is complete
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("Sale complete but invoice generation failed: $e"),
+                                        backgroundColor: Colors.orange,
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                }
+                              }
+                            }
+                          } catch (e) {
+                            // Checkout failed - cart should still be intact
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Checkout failed: $e\nPlease try again."),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 5),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
                               );
                             }
                           }

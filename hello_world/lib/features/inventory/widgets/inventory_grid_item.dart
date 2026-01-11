@@ -92,6 +92,31 @@ class InventoryGridItem extends StatelessWidget {
                     ),
                   ),
                 ),
+                // OUT OF STOCK badge overlay
+                if (item.stock <= 0)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4),
+                        ],
+                      ),
+                      child: const Text(
+                        "OUT OF STOCK",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

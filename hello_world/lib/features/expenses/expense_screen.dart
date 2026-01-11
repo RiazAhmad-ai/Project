@@ -1,5 +1,6 @@
 // lib/features/expenses/expense_screen.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:rsellx/providers/expense_provider.dart';
 import 'package:rsellx/providers/settings_provider.dart';
@@ -275,11 +276,25 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () => ReportingService.generateExpenseReport(
-              shopName: settingsProvider.shopName,
-              expenses: _getFilteredList(expenseProvider.getExpensesForDate(_selectedDate)),
-              date: _selectedDate,
-            ),
+            onPressed: () async {
+              try {
+                await ReportingService.generateExpenseReport(
+                  shopName: settingsProvider.shopName,
+                  expenses: _getFilteredList(expenseProvider.getExpensesForDate(_selectedDate)),
+                  date: _selectedDate,
+                );
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to generate PDF: $e'),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
             icon: const Icon(Icons.picture_as_pdf, color: AppColors.accent),
           ),
           IconButton(
@@ -312,64 +327,97 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // HEADER CARD
+            // 1. PREMIUM DASHBOARD HEADER
             Container(
               margin: const EdgeInsets.all(24),
-              padding: const EdgeInsets.all(24),
+              width: double.infinity,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFEF4444), Color(0xFF991B1B)],
+                  colors: [Color(0xFF2D3436), Color(0xFF000000)], // Sleek Dark Design or keep Red if you prefer
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(32),
+                borderRadius: BorderRadius.circular(35),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.red.withOpacity(0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 25,
+                    offset: const Offset(0, 15),
                   ),
                 ],
               ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "TOTAL SPENT (${isToday ? "TODAY" : displayDate})",
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(35),
+                child: Stack(
+                  children: [
+                    // Decorative Background Circle
+                    Positioned(
+                      right: -50,
+                      top: -50,
+                      child: Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.red.withOpacity(0.15),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: _pickDate,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.calendar_month,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Rs ${Formatter.formatCurrency(totalSpent)}",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 40,
-                      fontWeight: FontWeight.w900,
                     ),
-                  ),
-                ],
+                    
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // PERIOD STATS (Today, Weekly, Monthly, Annual)
+                          Row(
+                            children: [
+                              _buildGlassStat(
+                                label: "TODAY",
+                                subtitle: DateFormat('MMM d, yyyy').format(DateTime.now()),
+                                amount: expenseProvider.getTotalExpensesForDate(DateTime.now()),
+                                icon: Icons.bolt_rounded,
+                                color: Colors.blueAccent,
+                                onLongPress: () => _showDetailedReport(context, "DAILY REPORT", expenseProvider.getExpensesForDate(DateTime.now()), expenseProvider.getTotalExpensesForDate(DateTime.now()), Colors.blue),
+                              ),
+                              const SizedBox(width: 12),
+                              _buildGlassStat(
+                                label: "WEEKLY",
+                                subtitle: "${DateFormat('MMM d').format(DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)))} - ${DateFormat('MMM d').format(DateTime.now())}",
+                                amount: expenseProvider.getTotalExpensesForWeek(DateTime.now()),
+                                icon: Icons.auto_graph_rounded,
+                                color: Colors.orangeAccent,
+                                onLongPress: () => _showDetailedReport(context, "WEEKLY REPORT", expenseProvider.getExpensesForWeek(DateTime.now()), expenseProvider.getTotalExpensesForWeek(DateTime.now()), Colors.orange),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _buildGlassStat(
+                                label: "MONTHLY",
+                                subtitle: DateFormat('MMMM yyyy').format(DateTime.now()),
+                                amount: expenseProvider.getTotalExpensesForMonth(DateTime.now()),
+                                icon: Icons.calendar_month_rounded,
+                                color: Colors.greenAccent,
+                                onLongPress: () => _showDetailedReport(context, "MONTHLY REPORT", expenseProvider.getExpensesForMonth(DateTime.now()), expenseProvider.getTotalExpensesForMonth(DateTime.now()), Colors.green),
+                              ),
+                              const SizedBox(width: 12),
+                              _buildGlassStat(
+                                label: "ANNUAL",
+                                subtitle: DateFormat('yyyy').format(DateTime.now()),
+                                amount: expenseProvider.getTotalExpensesForYear(DateTime.now()),
+                                icon: Icons.account_balance_wallet_rounded,
+                                color: Colors.purpleAccent,
+                                onLongPress: () => _showDetailedReport(context, "ANNUAL REPORT", expenseProvider.getExpensesForYear(DateTime.now()), expenseProvider.getTotalExpensesForYear(DateTime.now()), Colors.purple),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -545,6 +593,175 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassStat({
+    required String label,
+    required String subtitle,
+    required double amount,
+    required IconData icon,
+    required Color color,
+    VoidCallback? onLongPress,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.12)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              FittedBox(
+                child: Text(
+                  "Rs ${Formatter.formatCurrency(amount)}",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // === UNIVERSAL DETAILED REPORT DIALOG ===
+  void _showDetailedReport(BuildContext context, String title, List<ExpenseItem> items, double total, Color themeColor) {
+    // Group by category for the report
+    Map<String, double> categoryTotals = {};
+    for (var e in items) {
+      categoryTotals[e.category] = (categoryTotals[e.category] ?? 0) + e.amount;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.assessment_rounded, color: themeColor, size: 30),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Total Spent: Rs ${Formatter.formatCurrency(total)}",
+                style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              
+              // Category Breakdown List
+              if (categoryTotals.isEmpty)
+                 const Text("No expenses recorded for this period.")
+              else
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: categoryTotals.entries.map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(color: themeColor, shape: BoxShape.circle),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              ],
+                            ),
+                            Text(
+                              "Rs ${Formatter.formatCurrency(entry.value)}",
+                              style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black87),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ),
+              
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              
+              // Close Button
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                  child: const Text("CLOSE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ),
       ),

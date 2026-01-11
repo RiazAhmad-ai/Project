@@ -1,6 +1,7 @@
 // lib/features/inventory/sell_item_sheet.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:rsellx/providers/sales_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:provider/provider.dart';
@@ -52,8 +53,15 @@ class _SellItemSheetState extends State<SellItemSheet> {
 
   void _addToCart() {
     if (_salePriceController.text.isEmpty) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter Sale Price!"), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Please enter Sale Price!"), 
+          backgroundColor: Colors.red,
+          duration: Duration(milliseconds: 600),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -82,16 +90,30 @@ class _SellItemSheetState extends State<SellItemSheet> {
       _audioPlayer.stop().then((_) => _audioPlayer.play(AssetSource('scanner_beep.mp3')));
       Navigator.pop(context, "ADD_MORE");
     } else {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Insufficient stock for this quantity!")),
+        const SnackBar(
+          content: Text("Insufficient stock!"),
+          backgroundColor: Colors.orange,
+          duration: Duration(milliseconds: 600),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
 
   void _confirmSell() {
     if (_salePriceController.text.isEmpty) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter Sale Price!"), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text("Please enter Sale Price!"), 
+          backgroundColor: Colors.red,
+          duration: Duration(milliseconds: 600),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }

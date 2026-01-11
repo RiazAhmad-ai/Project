@@ -6,7 +6,21 @@ class SettingsProvider extends ChangeNotifier {
   StreamSubscription? _settingsSubscription;
   
   SettingsProvider() {
-    _settingsSubscription = _settingsBox.watch().listen((_) => notifyListeners());
+    _initializeListener();
+  }
+  
+  void _initializeListener() {
+    try {
+      if (Hive.isBoxOpen('settingsBox')) {
+        _settingsSubscription = _settingsBox.watch().listen((_) {
+          notifyListeners();
+        }, onError: (error) {
+          debugPrint('SettingsProvider stream error: $error');
+        });
+      }
+    } catch (e) {
+      debugPrint('SettingsProvider initialization error: $e');
+    }
   }
 
   final Box _settingsBox = Hive.box('settingsBox');
@@ -30,11 +44,11 @@ class SettingsProvider extends ChangeNotifier {
     await _settingsBox.put('phone', phone);
     await _settingsBox.put('address', address);
     if (logo != null) await _settingsBox.put('logoPath', logo);
-    notifyListeners();
+    // Stream subscription will trigger notifyListeners
   }
 
   Future<void> updatePasscode(String newPasscode) async {
     await _settingsBox.put('adminPasscode', newPasscode);
-    notifyListeners();
+    // Stream subscription will trigger notifyListeners
   }
 }
