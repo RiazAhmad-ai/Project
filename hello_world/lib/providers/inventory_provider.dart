@@ -151,7 +151,7 @@ class InventoryProvider extends ChangeNotifier {
   double getTotalDamageLoss() {
     if (_cachedTotalDamageLoss != null) return _cachedTotalDamageLoss!;
     
-    _cachedTotalDamageLoss = _damageBox.values.fold(0.0, (sum, item) => sum + item.lossAmount);
+    _cachedTotalDamageLoss = _damageBox.values.fold<double>(0.0, (double sum, item) => sum + item.lossAmount);
     return _cachedTotalDamageLoss!;
   }
 
