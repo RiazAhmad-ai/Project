@@ -82,6 +82,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: Image.asset(
               'assets/splash.png',
               fit: BoxFit.fill,
+              cacheWidth: 800, // Optimize memory for large splash image
             ),
           ),
         ),

@@ -116,6 +116,9 @@ class SalesProvider extends ChangeNotifier {
        _dateIndex[dateKey]!.add(item);
     }
     
+    // Cache valid history (non-refunded)
+     _cachedValidHistory = list.where((h) => h.status != "Refunded").toList();
+    
     _historyDirty = false;
   }
   
@@ -125,7 +128,11 @@ class SalesProvider extends ChangeNotifier {
     return _dateIndex[dateKey] ?? [];
   }
 
-  List<SaleRecord> get _validHistory => historyItems.where((h) => h.status != "Refunded").toList();
+  List<SaleRecord> _cachedValidHistory = [];
+  List<SaleRecord> get _validHistory {
+    if (_historyDirty) _refreshCache();
+    return _cachedValidHistory;
+  }
 
   void addHistoryItem(SaleRecord item) {
     _historyBox.put(item.id, item);

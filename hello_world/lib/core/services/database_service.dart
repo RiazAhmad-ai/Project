@@ -44,13 +44,33 @@ class DatabaseService {
   }
 
   static Future<void> _openBoxes() async {
-    await Hive.openBox<InventoryItem>('inventoryBox');
-    await Hive.openBox<SaleRecord>('historyBox');
-    await Hive.openBox<SaleRecord>('cartBox');
-    await Hive.openBox<ExpenseItem>('expensesBox');
-    await Hive.openBox<CreditRecord>('creditsBox');
-    await Hive.openBox<DamageRecord>('damageBox');
-    await Hive.openBox('settingsBox');
+    // Open boxes in parallel for faster startup
+    await Future.wait([
+      Hive.openBox<InventoryItem>('inventoryBox'),
+      Hive.openBox<SaleRecord>('historyBox'),
+      Hive.openBox<SaleRecord>('cartBox'),
+      Hive.openBox<ExpenseItem>('expensesBox'),
+      Hive.openBox<CreditRecord>('creditsBox'),
+      Hive.openBox<DamageRecord>('damageBox'),
+      Hive.openBox('settingsBox'),
+    ]);
+
+    // Periodically compact boxes to free up disk space
+    _compactBoxes();
+  }
+
+  static Future<void> _compactBoxes() async {
+    // Run compaction in background
+    Future.microtask(() async {
+      try {
+        await Hive.box<InventoryItem>('inventoryBox').compact();
+        await Hive.box<SaleRecord>('historyBox').compact();
+        // Cart is transient, likely small but safe to compact
+        await Hive.box<SaleRecord>('cartBox').compact(); 
+      } catch (e) {
+        AppLogger.error("Box compaction failed", error: e);
+      }
+    });
   }
 
   static Future<void> _migrateData() async {

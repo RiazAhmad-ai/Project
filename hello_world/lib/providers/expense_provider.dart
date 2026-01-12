@@ -30,11 +30,7 @@ class ExpenseProvider extends ChangeNotifier {
       AppLogger.error('ExpenseProvider initialization error', error: e);
     }
   }
-  
-  void _invalidateCache() {
-    _cache.clear();
-  }
-  
+
   @override
   void dispose() {
     _expensesBoxSubscription?.cancel();
@@ -44,43 +40,7 @@ class ExpenseProvider extends ChangeNotifier {
   Box<ExpenseItem> get _expensesBox => Hive.box<ExpenseItem>('expensesBox');
 
   List<ExpenseItem> get _allExpenses => _expensesBox.values.toList();
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
-  List<ExpenseItem> get todayExpenses {
-    const key = 'todayExpenses';
-    if (!_cache.containsKey(key)) {
-      _cache[key] = _allExpenses
-          .where((e) => _isSameDay(DateTime.now(), e.date))
-          .toList();
-    }
-    return _cache[key] as List<ExpenseItem>;
-  }
-
-  List<ExpenseItem> get yesterdayExpenses {
-    const key = 'yesterdayExpenses';
-    if (!_cache.containsKey(key)) {
-      _cache[key] = _allExpenses
-          .where(
-            (e) => _isSameDay(
-              DateTime.now().subtract(const Duration(days: 1)),
-              e.date,
-            ),
-          )
-          .toList();
-    }
-    return _cache[key] as List<ExpenseItem>;
-  }
-
-  List<ExpenseItem> getExpensesForDate(DateTime date) {
-    final key = 'expensesForDate_${date.year}_${date.month}_${date.day}';
-    if (!_cache.containsKey(key)) {
-      _cache[key] = _allExpenses.where((e) => _isSameDay(date, e.date)).toList();
-    }
-    return _cache[key] as List<ExpenseItem>;
-  }
-
+  
   void addExpense(ExpenseItem expense) {
     _expensesBox.put(expense.id, expense);
     _invalidateCache();
@@ -94,26 +54,6 @@ class ExpenseProvider extends ChangeNotifier {
   void deleteExpense(String id) {
     _expensesBox.delete(id);
     _invalidateCache();
-  }
-
-  double getTotalExpenses() {
-    // Return only today's total
-    return todayExpenses.fold(0.0, (sum, item) => sum + item.amount);
-  }
-  
-  // If you need combined total, use this explicit method
-  double getTotalExpensesForTodayAndYesterday() {
-    return todayExpenses.fold(0.0, (sum, item) => sum + item.amount) +
-        yesterdayExpenses.fold(0.0, (sum, item) => sum + item.amount);
-  }
-
-  double getTotalExpensesForDate(DateTime date) {
-    final key = 'totalExpensesForDate_${date.year}_${date.month}_${date.day}';
-    if (!_cache.containsKey(key)) {
-      var list = getExpensesForDate(date);
-      _cache[key] = list.fold(0.0, (sum, item) => sum + item.amount);
-    }
-    return _cache[key] as double;
   }
 
   List<ExpenseItem> getExpensesForWeek(DateTime date) {
@@ -143,6 +83,47 @@ class ExpenseProvider extends ChangeNotifier {
     return _cache[key] as double;
   }
 
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  List<ExpenseItem> get todayExpenses => getExpensesForDate(DateTime.now());
+  
+  List<ExpenseItem> get yesterdayExpenses => 
+      getExpensesForDate(DateTime.now().subtract(const Duration(days: 1)));
+  
+  // === Date Index ===
+  final Map<String, List<ExpenseItem>> _dateIndex = {};
+
+  void _invalidateCache() {
+    _cache.clear();
+    _rebuildDateIndex();
+  }
+  
+  void _rebuildDateIndex() {
+    _dateIndex.clear();
+    for (var item in _allExpenses) {
+       final dateKey = "${item.date.year}-${item.date.month}-${item.date.day}";
+       if (!_dateIndex.containsKey(dateKey)) {
+         _dateIndex[dateKey] = [];
+       }
+       _dateIndex[dateKey]!.add(item);
+    }
+  }
+
+  List<ExpenseItem> getExpensesForDate(DateTime date) {
+    if (_dateIndex.isEmpty && _allExpenses.isNotEmpty) _rebuildDateIndex();
+    final dateKey = "${date.year}-${date.month}-${date.day}";
+    return _dateIndex[dateKey] ?? [];
+  }
+
+  double getTotalExpensesForDate(DateTime date) {
+    // Optimized total calculation using index
+    var list = getExpensesForDate(date);
+    return list.fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  // Optimize other methods if needed, but date lookup is the most critical for charts
+  
   List<ExpenseItem> getExpensesForYear(DateTime date) {
     final key = 'expensesForYear_${date.year}';
     if (!_cache.containsKey(key)) {
