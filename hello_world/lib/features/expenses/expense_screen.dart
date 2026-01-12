@@ -23,6 +23,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   DateTime _selectedDate = DateTime.now(); // By default Aaj ki date
   String _selectedCategory = "All";
   final List<String> categories = ["Food", "Bills", "Rent", "Travel", "Extra"];
+  
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
 
   @override
   void initState() {
@@ -31,6 +35,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -217,8 +222,23 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
 
   // === FILTERING ===
   List<ExpenseItem> _getFilteredList(List<ExpenseItem> originalList) {
-    if (_selectedCategory == "All") return originalList;
-    return originalList.where((item) => item.category == _selectedCategory).toList();
+    var filtered = originalList;
+    
+    // Filter by category
+    if (_selectedCategory != "All") {
+      filtered = filtered.where((item) => item.category == _selectedCategory).toList();
+    }
+    
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((item) {
+        return item.title.toLowerCase().contains(query) ||
+               item.category.toLowerCase().contains(query);
+      }).toList();
+    }
+    
+    return filtered;
   }
 
   Future<void> _pickDate() async {
@@ -324,10 +344,29 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 1. PREMIUM DASHBOARD HEADER
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Reset to today's date when refreshed
+          setState(() {
+            _selectedDate = DateTime.now();
+          });
+          
+          // Show feedback to user
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Refreshed to Today's Date"),
+              backgroundColor: AppColors.accent,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
+        color: AppColors.accent,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Important for pull to refresh
+          child: Column(
+            children: [
+              // 1. PREMIUM DASHBOARD HEADER
             Container(
               margin: const EdgeInsets.all(24),
               width: double.infinity,
@@ -373,21 +412,21 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           Row(
                             children: [
                               _buildGlassStat(
-                                label: "TODAY",
-                                subtitle: DateFormat('MMM d, yyyy').format(DateTime.now()),
-                                amount: expenseProvider.getTotalExpensesForDate(DateTime.now()),
+                                label: isToday ? "TODAY" : "SELECTED",
+                                subtitle: DateFormat('MMM d, yyyy').format(_selectedDate),
+                                amount: expenseProvider.getTotalExpensesForDate(_selectedDate),
                                 icon: Icons.bolt_rounded,
                                 color: Colors.blueAccent,
-                                onLongPress: () => _showDetailedReport(context, "DAILY REPORT", expenseProvider.getExpensesForDate(DateTime.now()), expenseProvider.getTotalExpensesForDate(DateTime.now()), Colors.blue),
+                                onLongPress: () => _showDetailedReport(context, "DAILY REPORT", expenseProvider.getExpensesForDate(_selectedDate), expenseProvider.getTotalExpensesForDate(_selectedDate), Colors.blue),
                               ),
                               const SizedBox(width: 12),
                               _buildGlassStat(
                                 label: "WEEKLY",
-                                subtitle: "${DateFormat('MMM d').format(DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1)))} - ${DateFormat('MMM d').format(DateTime.now())}",
-                                amount: expenseProvider.getTotalExpensesForWeek(DateTime.now()),
+                                subtitle: "${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)))} - ${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)).add(const Duration(days: 6)))}",
+                                amount: expenseProvider.getTotalExpensesForWeek(_selectedDate),
                                 icon: Icons.auto_graph_rounded,
                                 color: Colors.orangeAccent,
-                                onLongPress: () => _showDetailedReport(context, "WEEKLY REPORT", expenseProvider.getExpensesForWeek(DateTime.now()), expenseProvider.getTotalExpensesForWeek(DateTime.now()), Colors.orange),
+                                onLongPress: () => _showDetailedReport(context, "WEEKLY REPORT", expenseProvider.getExpensesForWeek(_selectedDate), expenseProvider.getTotalExpensesForWeek(_selectedDate), Colors.orange),
                               ),
                             ],
                           ),
@@ -396,20 +435,20 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             children: [
                               _buildGlassStat(
                                 label: "MONTHLY",
-                                subtitle: DateFormat('MMMM yyyy').format(DateTime.now()),
-                                amount: expenseProvider.getTotalExpensesForMonth(DateTime.now()),
+                                subtitle: DateFormat('MMMM yyyy').format(_selectedDate),
+                                amount: expenseProvider.getTotalExpensesForMonth(_selectedDate),
                                 icon: Icons.calendar_month_rounded,
                                 color: Colors.greenAccent,
-                                onLongPress: () => _showDetailedReport(context, "MONTHLY REPORT", expenseProvider.getExpensesForMonth(DateTime.now()), expenseProvider.getTotalExpensesForMonth(DateTime.now()), Colors.green),
+                                onLongPress: () => _showDetailedReport(context, "MONTHLY REPORT", expenseProvider.getExpensesForMonth(_selectedDate), expenseProvider.getTotalExpensesForMonth(_selectedDate), Colors.green),
                               ),
                               const SizedBox(width: 12),
                               _buildGlassStat(
                                 label: "ANNUAL",
-                                subtitle: DateFormat('yyyy').format(DateTime.now()),
-                                amount: expenseProvider.getTotalExpensesForYear(DateTime.now()),
+                                subtitle: DateFormat('yyyy').format(_selectedDate),
+                                amount: expenseProvider.getTotalExpensesForYear(_selectedDate),
                                 icon: Icons.account_balance_wallet_rounded,
                                 color: Colors.purpleAccent,
-                                onLongPress: () => _showDetailedReport(context, "ANNUAL REPORT", expenseProvider.getExpensesForYear(DateTime.now()), expenseProvider.getTotalExpensesForYear(DateTime.now()), Colors.purple),
+                                onLongPress: () => _showDetailedReport(context, "ANNUAL REPORT", expenseProvider.getExpensesForYear(_selectedDate), expenseProvider.getTotalExpensesForYear(_selectedDate), Colors.purple),
                               ),
                             ],
                           ),
@@ -417,6 +456,40 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+
+            // SEARCH BAR
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() {
+                  _searchQuery = val;
+                }),
+                decoration: InputDecoration(
+                  hintText: "Search expenses...",
+                  hintStyle: TextStyle(color: Colors.grey.shade400),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.accent),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = "";
+                            });
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 ),
               ),
             ),
@@ -460,6 +533,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }

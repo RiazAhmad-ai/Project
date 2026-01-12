@@ -15,9 +15,19 @@ class AddExpenseSheet extends StatefulWidget {
 class _AddExpenseSheetState extends State<AddExpenseSheet> {
   String selectedCategory = "Food";
   final List<String> categories = ["Food", "Bills", "Rent", "Travel", "Extra"];
+  
+  // Custom category
+  bool _isAddingCustomCategory = false;
+  final TextEditingController _customCategoryController = TextEditingController();
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
+  
+  @override
+  void dispose() {
+    _customCategoryController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,20 +38,21 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
         right: 24,
         top: 20,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center, // Center Alignment
-        children: [
-          // Handle
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center, // Center Alignment
+          children: [
+            // Handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
           Text(
             "ADD NEW EXPENSE",
@@ -126,12 +137,48 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: categories.map((cat) {
-                bool isSelected = selectedCategory == cat;
-                return GestureDetector(
+              children: [
+                ...categories.map((cat) {
+                  bool isSelected = selectedCategory == cat;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedCategory = cat;
+                        _isAddingCustomCategory = false;
+                      });
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(20),
+                        border: isSelected
+                            ? null
+                            : Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        cat,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                // Custom Category Button
+                GestureDetector(
                   onTap: () {
                     setState(() {
-                      selectedCategory = cat;
+                      _isAddingCustomCategory = !_isAddingCustomCategory;
+                      if (_isAddingCustomCategory) {
+                        selectedCategory = "Custom";
+                      }
                     });
                   },
                   child: Container(
@@ -141,25 +188,53 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.grey[100],
+                      color: _isAddingCustomCategory ? AppColors.accent : Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
-                      border: isSelected
+                      border: _isAddingCustomCategory
                           ? null
                           : Border.all(color: Colors.grey.shade300),
                     ),
-                    child: Text(
-                      cat,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.add_circle_outline,
+                          size: 16,
+                          color: _isAddingCustomCategory ? Colors.white : Colors.black,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "Custom",
+                          style: TextStyle(
+                            color: _isAddingCustomCategory ? Colors.white : Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              }).toList(),
+                ),
+              ],
             ),
           ),
+          
+          // Custom Category Input Field
+          if (_isAddingCustomCategory) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _customCategoryController,
+              decoration: InputDecoration(
+                labelText: "Enter Custom Category",
+                prefixIcon: const Icon(Icons.category, color: AppColors.accent),
+                filled: true,
+                fillColor: Colors.grey[50],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 30),
 
           // === 4. SAVE BUTTON ===
@@ -177,15 +252,32 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                   );
                   return;
                 }
+                
+                // Check if custom category is selected but empty
+                if (_isAddingCustomCategory && _customCategoryController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Please enter custom category name!"),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  return;
+                }
+
+                // Use custom category if provided, otherwise use selected category
+                final categoryToUse = _isAddingCustomCategory 
+                    ? _customCategoryController.text.trim()
+                    : selectedCategory;
 
                 final expense = ExpenseItem(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   title: _descController.text.isEmpty
-                      ? selectedCategory
+                      ? categoryToUse
                       : _descController.text,
                   amount: double.tryParse(_amountController.text) ?? 0.0,
                   date: DateTime.now(),
-                  category: selectedCategory,
+                  category: categoryToUse,
                 );
 
                 context.read<ExpenseProvider>().addExpense(expense);
@@ -218,6 +310,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
           ),
           const SizedBox(height: 20),
         ],
+      ),
       ),
     );
   }

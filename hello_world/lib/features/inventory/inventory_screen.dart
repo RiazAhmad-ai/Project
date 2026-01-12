@@ -1098,7 +1098,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  void _processManualSell(String code) {
+  void _processManualSell(String code) async {
     if (code.trim().isEmpty) return;
     
     Navigator.pop(context); // Close dialog
@@ -1109,7 +1109,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         (item) => item.barcode == code.trim(),
       );
 
-      showModalBottomSheet(
+      final result = await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.white,
@@ -1118,6 +1118,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
         builder: (context) => SellItemSheet(item: match),
       );
+      
+      // If CHECKOUT was clicked, open cart screen
+      if (result == "VIEW_CART" && mounted) {
+        await Future.delayed(const Duration(milliseconds: 150));
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const CartScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1159,99 +1174,53 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     final salesProvider = context.read<SalesProvider>();
     
-    // Check if item already exists in cart
-    final cartList = salesProvider.cart;
-    final existingItem = cartList.cast<SaleRecord?>().firstWhere(
-      (c) => c?.itemId == item.id, 
-      orElse: () => null
+    // Create new record for the provider to process
+    final cartItem = SaleRecord(
+      id: "sale_${item.id}_${DateTime.now().millisecondsSinceEpoch}",
+      itemId: item.id,
+      name: item.name,
+      price: item.price,
+      actualPrice: item.price,
+      qty: 1,
+      profit: 0.0,
+      date: DateTime.now(),
+      status: "Cart",
+      category: item.category,
+      subCategory: item.subCategory,
+      size: item.size,
+      weight: item.weight,
+      imagePath: item.imagePath,
     );
+
+    // Manager will handle merging if already in cart and stock deduction
+    salesProvider.addToCart(cartItem);
     
-    if (existingItem != null) {
-      // Increment existing cart entry
-      existingItem.qty += 1;
-      existingItem.profit = (existingItem.price - existingItem.actualPrice) * existingItem.qty;
-      existingItem.imagePath = item.imagePath; // Ensure image is synced
-      existingItem.save(); 
-      
-      // Deduct from inventory stock (this triggers UI update via listener)
-      item.stock -= 1;
-      item.save(); 
-      
-      HapticFeedback.lightImpact();
-      if (!mounted) return;
-      
-      // Play success beep
-      _audioPlayer.play(AssetSource('scanner_beep.mp3'));
-      
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.shopping_cart, color: Colors.white, size: 18),
-              const SizedBox(width: 12),
-              Text("🛒 ${item.name} x${existingItem.qty}"),
-            ],
-          ),
-          duration: const Duration(milliseconds: 400),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
+    HapticFeedback.lightImpact();
+    if (!mounted) return;
+    
+    // Play success beep
+    _audioPlayer.play(AssetSource('scanner_beep.mp3'));
+    
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text("${item.name} added to cart!")),
+          ],
         ),
-      );
-    } else {
-      // Add new cart entry
-      final cartItem = SaleRecord(
-        id: "cart_${item.id}_${DateTime.now().millisecondsSinceEpoch}",
-        itemId: item.id,
-        name: item.name,
-        price: item.price,
-        actualPrice: item.price, 
-        qty: 1,
-        profit: 0.0,
-        date: DateTime.now(),
-        status: "Cart",
-        category: item.category,
-        size: item.size,
-        subCategory: item.subCategory,
-        weight: item.weight,
-        imagePath: item.imagePath,
-      );
-      
-      // Deduct from inventory stock first to ensure immediate UI feedback
-      item.stock -= 1;
-      item.save(); 
-      
-      // Add to sales provider (Note: SalesProvider also has deduction logic, 
-      // but since item is already updated/saved, it will see the new value or we can clean up provider logic)
-      salesProvider.addToCartSilent(cartItem);
-      
-      HapticFeedback.lightImpact();
-      if (!mounted) return;
-      
-      // Play success beep
-      _audioPlayer.play(AssetSource('scanner_beep.mp3'));
-      
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 18),
-              const SizedBox(width: 12),
-              Text("🛒 ${item.name} added!"),
-            ],
-          ),
-          duration: const Duration(milliseconds: 400),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+        backgroundColor: AppColors.success,
+        duration: const Duration(milliseconds: 600),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
-  void _showSellSheet(InventoryItem item) {
+  void _showSellSheet(InventoryItem item) async {
     _audioPlayer.stop().then((_) => _audioPlayer.play(AssetSource('scanner_beep.mp3')));
-    showModalBottomSheet(
+    final result = await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -1260,6 +1229,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
       builder: (context) => SellItemSheet(item: item),
     );
+    
+    // If CHECKOUT was clicked, open cart screen
+    if (result == "VIEW_CART" && mounted) {
+      await Future.delayed(const Duration(milliseconds: 150));
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const CartScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
+    }
   }
 
   Widget _buildItemList() {

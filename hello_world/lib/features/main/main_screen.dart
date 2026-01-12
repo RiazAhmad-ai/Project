@@ -75,9 +75,17 @@ class _MainScreenState extends State<MainScreen> {
         _openBarcodeScanner();
       } else if (result == "VIEW_CART") {
         if (!mounted) return;
+        // Small delay for smooth transition after bottom sheet pops
+        await Future.delayed(const Duration(milliseconds: 150));
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const CartScreen()),
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const CartScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 300),
+          ),
         );
       }
     } else {
@@ -122,9 +130,17 @@ class _MainScreenState extends State<MainScreen> {
 
     if (result == "VIEW_CART") {
       if (!mounted) return;
+      // Small delay for smooth transition
+      await Future.delayed(const Duration(milliseconds: 150));
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CartScreen()),
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const CartScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
       );
     }
   }

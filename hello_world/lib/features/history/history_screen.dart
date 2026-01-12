@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:rsellx/providers/sales_provider.dart';
 import 'package:rsellx/providers/settings_provider.dart';
 import 'package:rsellx/providers/inventory_provider.dart';
@@ -647,104 +648,131 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // 1. Sleek App Bar
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Reset to today's date when refreshed
+          setState(() {
+            _selectedDate = DateTime.now();
+            _currentPage = 1;
+          });
+          
+          // Show feedback to user
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Refreshed to Today's Date"),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
+        color: AppColors.primary,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(), // Important for pull to refresh
+          slivers: [
+          // 1. Floating Compact Header
           SliverAppBar(
-            expandedHeight: 180,
-            floating: false,
-            pinned: true,
+            expandedHeight: 80,
+            floating: true,
+            pinned: false,
+            snap: true,
             elevation: 0,
-            backgroundColor: AppColors.primary,
+            backgroundColor: Colors.red,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
-                  gradient: AppColors.primaryGradient,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFef473a), Color(0xFFcb2d3e)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 80, left: 24, right: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Sales History",
-                        style: AppTextStyles.label.copyWith(color: Colors.white70),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Rs ${Formatter.formatCurrency(dayTotal)}",
-                                style: AppTextStyles.h1.copyWith(color: Colors.white, fontSize: 28),
-                              ),
-                              Text(
-                                "Profit: Rs ${Formatter.formatCurrency(dayProfit)}",
-                                style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(0.8)),
-                              ),
-                            ],
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Title
+                        Text(
+                          "History",
+                          style: AppTextStyles.h1.copyWith(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
                           ),
-                          IconButton(
-                            onPressed: () => ReportingService.generateSalesReport(
-                              shopName: settingsProvider.shopName,
-                              sales: _filteredHistory,
-                              date: _selectedDate,
+                        ),
+                        // Action Buttons
+                        Row(
+                          children: [
+                            // PDF Button
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: IconButton(
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                                onPressed: () => ReportingService.generateSalesReport(
+                                  shopName: settingsProvider.shopName,
+                                  sales: _filteredHistory,
+                                  date: _selectedDate,
+                                ),
+                                icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 20),
+                                tooltip: "Generate PDF",
+                              ),
                             ),
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
-                              child: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _selectedDate,
-                                firstDate: DateTime(2022),
-                                lastDate: DateTime.now(),
-                                builder: (context, child) {
-                                  return Theme(
-                                    data: Theme.of(context).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                        primary: AppColors.primary,
-                                        onPrimary: Colors.white,
-                                        onSurface: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    child: child!,
+                            const SizedBox(width: 8),
+                            // Calendar Button
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: IconButton(
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                                onPressed: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: _selectedDate,
+                                    firstDate: DateTime(2022),
+                                    lastDate: DateTime.now(),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: const ColorScheme.light(
+                                            primary: Colors.red,
+                                            onPrimary: Colors.white,
+                                            onSurface: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
                                   );
+                                  if (picked != null) {
+                                    setState(() {
+                                      _selectedDate = picked;
+                                      _currentPage = 1;
+                                    });
+                                  }
                                 },
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _selectedDate = picked;
-                                  _currentPage = 1;
-                                });
-                              }
-                            },
-                            icon: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
-                              child: const Icon(Icons.calendar_month, color: Colors.white),
+                                icon: const Icon(Icons.calendar_month, color: Colors.white, size: 20),
+                                tooltip: "Select Date",
+                              ),
                             ),
-                          )
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              title: Text(
-                _formatDateManual(_selectedDate),
-                style: AppTextStyles.h3.copyWith(color: Colors.white),
-              ),
-              centerTitle: false,
+              // No title needed - already shown in background
             ),
           ),
 
@@ -773,6 +801,107 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                ),
+              ),
+            ),
+          ),
+
+          // 2.5. PREMIUM STATISTICS CARDS
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1e3c72), Color(0xFF2a5298)], // Blue gradient
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    // Decorative circle (smaller)
+                    Positioned(
+                      right: -30,
+                      top: -30,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primary.withOpacity(0.1),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              _buildSalesStat(
+                                salesProvider,
+                                label: _formatDate(_selectedDate) == _formatDate(DateTime.now()) ? "TODAY" : "SELECTED",
+                                subtitle: DateFormat('MMM d, yyyy').format(_selectedDate),
+                                sales: salesProvider.getTotalSalesForDate(_selectedDate),
+                                profit: salesProvider.getTotalProfitForDate(_selectedDate),
+                                icon: Icons.bolt_rounded,
+                                color: Colors.blueAccent,
+                                onLongPress: () => _showSalesDetailedReport(context, "DAILY SALES", salesProvider.getSalesForDate(_selectedDate), salesProvider.getTotalSalesForDate(_selectedDate), salesProvider.getTotalProfitForDate(_selectedDate), Colors.blue),
+                              ),
+                              const SizedBox(width: 10),
+                              _buildSalesStat(
+                                salesProvider,
+                                label: "WEEKLY",
+                                subtitle: "${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)))} - ${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)).add(const Duration(days: 6)))}",
+                                sales: salesProvider.getTotalSalesForWeek(_selectedDate),
+                                profit: salesProvider.getTotalProfitForWeek(_selectedDate),
+                                icon: Icons.auto_graph_rounded,
+                                color: Colors.orangeAccent,
+                                onLongPress: () => _showSalesDetailedReport(context, "WEEKLY SALES", salesProvider.getSalesForWeek(_selectedDate), salesProvider.getTotalSalesForWeek(_selectedDate), salesProvider.getTotalProfitForWeek(_selectedDate), Colors.orange),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              _buildSalesStat(
+                                salesProvider,
+                                label: "MONTHLY",
+                                subtitle: DateFormat('MMMM yyyy').format(_selectedDate),
+                                sales: salesProvider.getTotalSalesForMonth(_selectedDate),
+                                profit: salesProvider.getTotalProfitForMonth(_selectedDate),
+                                icon: Icons.calendar_month_rounded,
+                                color: Colors.greenAccent,
+                                onLongPress: () => _showSalesDetailedReport(context, "MONTHLY SALES", salesProvider.getSalesForMonth(_selectedDate), salesProvider.getTotalSalesForMonth(_selectedDate), salesProvider.getTotalProfitForMonth(_selectedDate), Colors.green),
+                              ),
+                              const SizedBox(width: 10),
+                              _buildSalesStat(
+                                salesProvider,
+                                label: "ANNUAL",
+                                subtitle: DateFormat('yyyy').format(_selectedDate),
+                                sales: salesProvider.getTotalSalesForYear(_selectedDate),
+                                profit: salesProvider.getTotalProfitForYear(_selectedDate),
+                                icon: Icons.account_balance_wallet_rounded,
+                                color: Colors.purpleAccent,
+                                onLongPress: () => _showSalesDetailedReport(context, "ANNUAL SALES", salesProvider.getSalesForYear(_selectedDate), salesProvider.getTotalSalesForYear(_selectedDate), salesProvider.getTotalProfitForYear(_selectedDate), Colors.purple),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -833,6 +962,218 @@ class _HistoryScreenState extends State<HistoryScreen> {
           
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
+      ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return "${date.day}/${date.month}/${date.year}";
+  }
+
+  Widget _buildSalesStat(
+    SalesProvider provider, {
+    required String label,
+    required String subtitle,
+    required double sales,
+    required double profit,
+    required IconData icon,
+    required Color color,
+    VoidCallback? onLongPress,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.12)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 14),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 7,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              FittedBox(
+                child: Text(
+                  "Rs ${Formatter.formatCurrency(sales)}",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              FittedBox(
+                child: Text(
+                  "Profit: Rs ${Formatter.formatCurrency(profit)}",
+                  style: TextStyle(
+                    color: Colors.greenAccent.shade100,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSalesDetailedReport(BuildContext context, String title, List<SaleRecord> items, double totalSales, double totalProfit, Color themeColor) {
+    // Group by product name
+    Map<String, Map<String, dynamic>> productSummary = {};
+    for (var sale in items) {
+      if (!productSummary.containsKey(sale.name)) {
+        productSummary[sale.name] = {
+          'qty': 0,
+          'sales': 0.0,
+          'profit': 0.0,
+        };
+      }
+      productSummary[sale.name]!['qty'] += sale.qty;
+      productSummary[sale.name]!['sales'] += (sale.price * sale.qty);
+      productSummary[sale.name]!['profit'] += sale.profit;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.assessment_rounded, color: themeColor, size: 30),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Total Sales: Rs ${Formatter.formatCurrency(totalSales)}",
+                style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                "Total Profit: Rs ${Formatter.formatCurrency(totalProfit)}",
+                style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              
+              // Product List
+              if (productSummary.isEmpty)
+                const Text("No sales recorded for this period.")
+              else
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: productSummary.entries.map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    entry.key,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  "${entry.value['qty']} pcs",
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Sales: Rs ${Formatter.formatCurrency(entry.value['sales'])}",
+                                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                                ),
+                                Text(
+                                  "Profit: Rs ${Formatter.formatCurrency(entry.value['profit'])}",
+                                  style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 16),
+                          ],
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+                ),
+              
+              const SizedBox(height: 16),
+              
+              // Close Button
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                  child: const Text("CLOSE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

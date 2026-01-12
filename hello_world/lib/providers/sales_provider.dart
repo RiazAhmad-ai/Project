@@ -184,7 +184,22 @@ class SalesProvider extends ChangeNotifier {
   int get cartCount => _cartBox.values.fold(0, (sum, item) => sum + item.qty);
 
   void addToCart(SaleRecord item) {
-    _cartBox.put(item.id, item);
+    // Check if item already exists in cart with SAME PRICE
+    final existingIndex = _cartBox.values.toList().indexWhere(
+      (c) => c.itemId == item.itemId && c.price == item.price
+    );
+
+    if (existingIndex != -1) {
+      final existingItem = _cartBox.getAt(existingIndex);
+      if (existingItem != null) {
+        existingItem.qty += item.qty;
+        existingItem.profit = (existingItem.price - existingItem.actualPrice) * existingItem.qty;
+        existingItem.save();
+      }
+    } else {
+      _cartBox.put(item.id, item);
+    }
+
     // Deduct from inventory immediately
     final invItem = _inventoryBox.get(item.itemId);
     if (invItem != null) {
@@ -195,7 +210,21 @@ class SalesProvider extends ChangeNotifier {
 
   /// Adds to cart WITHOUT deducting from inventory (for when UI handles deduction)
   void addToCartSilent(SaleRecord item) {
-    _cartBox.put(item.id, item);
+    // Check if item already exists in cart with SAME PRICE
+    final existingIndex = _cartBox.values.toList().indexWhere(
+      (c) => c.itemId == item.itemId && c.price == item.price
+    );
+
+    if (existingIndex != -1) {
+      final existingItem = _cartBox.getAt(existingIndex);
+      if (existingItem != null) {
+        existingItem.qty += item.qty;
+        existingItem.profit = (existingItem.price - existingItem.actualPrice) * existingItem.qty;
+        existingItem.save();
+      }
+    } else {
+      _cartBox.put(item.id, item);
+    }
   }
 
   void removeFromCart(int index) {
@@ -349,6 +378,71 @@ class SalesProvider extends ChangeNotifier {
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+
+  // === DATE-SPECIFIC HELPERS (Similar to ExpenseProvider) ===
+  
+  List<SaleRecord> getSalesForDate(DateTime date) {
+    return _validHistory.where((e) => _isSameDay(e.date, date)).toList();
+  }
+
+  double getTotalSalesForDate(DateTime date) {
+    var list = getSalesForDate(date);
+    return list.fold(0.0, (sum, item) => sum + (item.price * item.qty));
+  }
+
+  double getTotalProfitForDate(DateTime date) {
+    var list = getSalesForDate(date);
+    return list.fold(0.0, (sum, item) => sum + item.profit);
+  }
+
+  List<SaleRecord> getSalesForWeek(DateTime date) {
+    DateTime startOfWeek = date.subtract(Duration(days: date.weekday - 1));
+    startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day, 0, 0, 0);
+    DateTime endOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day + 6, 23, 59, 59);
+    
+    return _validHistory.where((e) {
+      return (e.date.isAtSameMomentAs(startOfWeek) || e.date.isAfter(startOfWeek)) && 
+             (e.date.isAtSameMomentAs(endOfWeek) || e.date.isBefore(endOfWeek));
+    }).toList();
+  }
+
+  double getTotalSalesForWeek(DateTime date) {
+    var list = getSalesForWeek(date);
+    return list.fold(0.0, (sum, item) => sum + (item.price * item.qty));
+  }
+
+  double getTotalProfitForWeek(DateTime date) {
+    var list = getSalesForWeek(date);
+   return list.fold(0.0, (sum, item) => sum + item.profit);
+  }
+
+  List<SaleRecord> getSalesForMonth(DateTime date) {
+    return _validHistory.where((e) => e.date.month == date.month && e.date.year == date.year).toList();
+  }
+
+  double getTotalSalesForMonth(DateTime date) {
+    var list = getSalesForMonth(date);
+    return list.fold(0.0, (sum, item) => sum + (item.price * item.qty));
+  }
+
+  double getTotalProfitForMonth(DateTime date) {
+    var list = getSalesForMonth(date);
+    return list.fold(0.0, (sum, item) => sum + item.profit);
+  }
+
+  List<SaleRecord> getSalesForYear(DateTime date) {
+    return _validHistory.where((e) => e.date.year == date.year).toList();
+  }
+
+  double getTotalSalesForYear(DateTime date) {
+    var list = getSalesForYear(date);
+    return list.fold(0.0, (sum, item) => sum + (item.price * item.qty));
+  }
+
+  double getTotalProfitForYear(DateTime date) {
+    var list = getSalesForYear(date);
+    return list.fold(0.0, (sum, item) => sum + item.profit);
+  }
 
   Map<String, dynamic> _getWeeklyData() {
     // Pre-allocate arrays for better performance

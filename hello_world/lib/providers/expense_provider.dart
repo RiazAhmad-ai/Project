@@ -86,15 +86,19 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   List<ExpenseItem> getExpensesForWeek(DateTime date) {
-    // Week start logic (Monday to Sunday)
+    // Week start logic (Monday = 1 to Sunday = 7)
+    // Get the start of the week (Monday at 00:00:00)
     DateTime startOfWeek = date.subtract(Duration(days: date.weekday - 1));
-    startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-    DateTime endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+    startOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day, 0, 0, 0);
     
-    return _allExpenses.where((e) => 
-      e.date.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) && 
-      e.date.isBefore(endOfWeek.add(const Duration(seconds: 1)))
-    ).toList();
+    // Get the end of the week (Sunday at 23:59:59)
+    DateTime endOfWeek = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day + 6, 23, 59, 59);
+    
+    return _allExpenses.where((e) {
+      // Check if expense date falls within the week range
+      return (e.date.isAtSameMomentAs(startOfWeek) || e.date.isAfter(startOfWeek)) && 
+             (e.date.isAtSameMomentAs(endOfWeek) || e.date.isBefore(endOfWeek));
+    }).toList();
   }
 
   double getTotalExpensesForWeek(DateTime date) {

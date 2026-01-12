@@ -9,6 +9,7 @@ import 'package:rsellx/providers/sales_provider.dart';
 import 'package:rsellx/providers/inventory_provider.dart';
 import 'package:rsellx/features/inventory/sell_item_sheet.dart';
 import 'package:provider/provider.dart';
+import '../../features/cart/cart_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
@@ -288,13 +289,13 @@ Widget _buildSearchItem(BuildContext context, InventoryItem item, bool isBestMat
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     // Play beep sound
                     final audioPlayer = AudioPlayer();
                     audioPlayer.play(AssetSource('scanner_beep.mp3'));
                     
                     // Open sell sheet WITHOUT closing search modal
-                    showModalBottomSheet(
+                    final result = await showModalBottomSheet<String>(
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.white,
@@ -303,6 +304,23 @@ Widget _buildSearchItem(BuildContext context, InventoryItem item, bool isBestMat
                       ),
                       builder: (context) => SellItemSheet(item: item),
                     );
+
+                    if (result == "VIEW_CART") {
+                      if (context.mounted) {
+                        Navigator.pop(context); // Close search modal
+                        await Future.delayed(const Duration(milliseconds: 150));
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => const CartScreen(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return FadeTransition(opacity: animation, child: child);
+                            },
+                            transitionDuration: const Duration(milliseconds: 300),
+                          ),
+                        );
+                      }
+                    }
                   },
                   child: Container(
                     width: 55,

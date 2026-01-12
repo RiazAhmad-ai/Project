@@ -104,6 +104,7 @@ class _SellItemSheetState extends State<SellItemSheet> {
   }
 
   void _confirmSell() {
+    HapticFeedback.mediumImpact();
     if (_salePriceController.text.isEmpty) {
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context).clearSnackBars();
