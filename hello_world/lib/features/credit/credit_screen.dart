@@ -5,6 +5,7 @@ import '../../providers/credit_provider.dart';
 import '../../data/models/credit_model.dart';
 import '../../shared/utils/formatting.dart';
 import 'credit_details_screen.dart';
+import '../../core/utils/debouncer.dart';
 
 class CreditScreen extends StatefulWidget {
   const CreditScreen({super.key});
@@ -17,11 +18,20 @@ class _CreditScreenState extends State<CreditScreen> with SingleTickerProviderSt
   late TabController _tabController;
   final _searchCtrl = TextEditingController();
   String _searchQuery = "";
+  final _searchDebouncer = Debouncer(milliseconds: 300);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchCtrl.dispose();
+    _searchDebouncer.dispose();
+    super.dispose();
   }
 
   @override
@@ -56,7 +66,13 @@ class _CreditScreenState extends State<CreditScreen> with SingleTickerProviderSt
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              onChanged: (val) {
+                _searchDebouncer.run(() {
+                  if (mounted) {
+                    setState(() => _searchQuery = val.toLowerCase());
+                  }
+                });
+              },
               decoration: InputDecoration(
                 hintText: "Search Name, Phone, or Amount...",
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -326,6 +342,15 @@ class _AddCreditDialogState extends State<AddCreditDialog> {
   final _amountCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   String _type = 'Lend'; 
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _amountCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
