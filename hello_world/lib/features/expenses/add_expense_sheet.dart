@@ -26,6 +26,8 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   @override
   void dispose() {
     _customCategoryController.dispose();
+    _amountController.dispose();
+    _descController.dispose();
     super.dispose();
   }
 

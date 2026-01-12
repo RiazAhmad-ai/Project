@@ -377,11 +377,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(35),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Color(0x33000000), // 0.2 opacity black
                     blurRadius: 25,
-                    offset: const Offset(0, 15),
+                    offset: Offset(0, 15),
                   ),
                 ],
               ),
@@ -396,9 +396,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       child: Container(
                         width: 200,
                         height: 200,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.red.withOpacity(0.15),
+                          color: Color(0x26FF0000), // 0.15 opacity red
                         ),
                       ),
                     ),
@@ -587,7 +587,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       background: Container(
         margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: const Color(0x1AEF4444), // AppColors.error 0.1 opacity
           borderRadius: BorderRadius.circular(20),
         ),
         alignment: Alignment.centerRight,
@@ -602,11 +602,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Color(0x0A000000), // 0.04 opacity black
                 blurRadius: 10,
-                offset: const Offset(0, 4),
+                offset: Offset(0, 4),
               ),
             ],
           ),
@@ -614,8 +614,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withOpacity(0.1),
+                decoration: const BoxDecoration(
+                  color: Color(0x1A3B82F6), // AppColors.accent 0.1 opacity
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.edit_note, color: AppColors.accent, size: 20),
@@ -687,9 +687,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: const Color(0x14FFFFFF), // 0.08 opacity white
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
+            border: Border.all(color: const Color(0x1FFFFFFF)), // 0.12 opacity white
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,8 +705,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               const SizedBox(height: 12),
               Text(
                 label,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                style: const TextStyle(
+                  color: Color(0x80FFFFFF), // 0.5 opacity white
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1,
@@ -715,8 +715,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                style: const TextStyle(
+                  color: Color(0xB3FFFFFF), // 0.7 opacity white
                   fontSize: 8,
                   fontWeight: FontWeight.w600,
                 ),

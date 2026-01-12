@@ -21,6 +21,7 @@ class InventoryProvider extends ChangeNotifier {
       if (Hive.isBoxOpen('inventoryBox')) {
         _inventoryBoxSubscription = _inventoryBox.watch().listen((_) {
           _inventoryDirty = true;
+          _clearComputedCache();
           notifyListeners();
         }, onError: (error) {
           debugPrint('InventoryProvider inventory stream error: $error');
@@ -29,6 +30,7 @@ class InventoryProvider extends ChangeNotifier {
       
       if (Hive.isBoxOpen('damageBox')) {
         _damageBoxSubscription = _damageBox.watch().listen((_) {
+          _clearComputedCache();
           notifyListeners();
         }, onError: (error) {
           debugPrint('InventoryProvider damage stream error: $error');
@@ -123,21 +125,41 @@ class InventoryProvider extends ChangeNotifier {
     record.delete();
   }
 
+  // === COMPUTED VALUE CACHE ===
+  double? _cachedTotalStockValue;
+  double? _cachedTotalDamageLoss;
+  int? _cachedLowStockCount;
+  
+  void _clearComputedCache() {
+    _cachedTotalStockValue = null;
+    _cachedTotalDamageLoss = null;
+    _cachedLowStockCount = null;
+  }
+
   double getTotalStockValue() {
+    if (_cachedTotalStockValue != null) return _cachedTotalStockValue!;
+    
     // Perform calculation on cached list which is faster than box iteration
     double total = 0.0;
     for (var item in inventory) {
       total += (item.price * item.stock);
     }
+    _cachedTotalStockValue = total;
     return total;
   }
 
   double getTotalDamageLoss() {
-    return _damageBox.values.fold(0.0, (sum, item) => sum + item.lossAmount);
+    if (_cachedTotalDamageLoss != null) return _cachedTotalDamageLoss!;
+    
+    _cachedTotalDamageLoss = _damageBox.values.fold(0.0, (sum, item) => sum + item.lossAmount);
+    return _cachedTotalDamageLoss!;
   }
 
   int getLowStockCount() {
-    return inventory.where((item) => item.stock < item.lowStockThreshold).length;
+    if (_cachedLowStockCount != null) return _cachedLowStockCount!;
+    
+    _cachedLowStockCount = inventory.where((item) => item.stock < item.lowStockThreshold).length;
+    return _cachedLowStockCount!;
   }
 
   Future<void> clearAllData() async {

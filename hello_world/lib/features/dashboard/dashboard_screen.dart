@@ -108,8 +108,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         errorBuilder: (c, o, s) => Container(
                           height: 40,
                           width: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                          decoration: const BoxDecoration(
+                            color: Color(0x1AE53935), // AppColors.primary 0.1 opacity
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.storefront, color: AppColors.primary, size: 24),
@@ -237,7 +237,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 10, offset: Offset(0, 4))], // 0.03 opacity black
         ),
         child: Column(
           children: [

@@ -199,11 +199,11 @@ class _MainScreenState extends State<MainScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Color(0x1A000000), // 0.1 opacity black
                       blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      offset: Offset(0, 10),
                     ),
                   ],
                 ),
@@ -308,15 +308,15 @@ class _MainScreenState extends State<MainScreen> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withOpacity(0.3),
+                            color: const Color(0x4D3B82F6), // AppColors.accent 0.3 opacity
                             blurRadius: 15,
                             offset: const Offset(0, 8),
                             spreadRadius: 2,
                           ),
-                          BoxShadow(
-                            color: Colors.white.withOpacity(0.1),
+                          const BoxShadow(
+                            color: Color(0x1AFFFFFF), // 0.1 opacity white
                             blurRadius: 0,
-                            offset: const Offset(0, -2),
+                            offset: Offset(0, -2),
                           ),
                         ],
                       ),
@@ -333,7 +333,7 @@ class _MainScreenState extends State<MainScreen> {
                             end: Alignment.bottomRight,
                           ),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.25),
+                            color: const Color(0x40FFFFFF), // 0.25 opacity white
                             width: 2.5,
                           ),
                         ),
@@ -343,8 +343,8 @@ class _MainScreenState extends State<MainScreen> {
                             // Upward Indicator for Swipe
                             Container(
                               padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                              decoration: const BoxDecoration(
+                                color: Color(0x33FFFFFF), // 0.2 opacity white
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.keyboard_arrow_up_rounded, color: Colors.white, size: 18),
@@ -376,11 +376,11 @@ class _MainScreenState extends State<MainScreen> {
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2.5),
-                            boxShadow: [
+                            boxShadow: const [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Color(0x33000000), // 0.2 opacity black
                                 blurRadius: 6,
-                                offset: const Offset(0, 3)
+                                offset: Offset(0, 3)
                               )
                             ]
                           ),
