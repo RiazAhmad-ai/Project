@@ -158,15 +158,19 @@ class DamageScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            record.reason,
-                            style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              record.reason,
+                              style: const TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -653,9 +657,13 @@ class _DamageFormSheetState extends State<DamageFormSheet> {
                         ),
                         if (item.barcode != "N/A") ...[
                           const SizedBox(width: 8),
-                          Text(
-                            "• ${item.barcode}",
-                            style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                          Expanded(
+                            child: Text(
+                              "• ${item.barcode}",
+                              style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
                         ],
                       ],
@@ -675,6 +683,10 @@ class _DamageFormSheetState extends State<DamageFormSheet> {
                         }),
                         if (item.size != "N/A") _Tag(label: item.size, color: Colors.orange, icon: Icons.straighten),
                         if (item.weight != "N/A") _Tag(label: item.weight, color: Colors.teal, icon: Icons.scale),
+                        if (item.color != "N/A") _Tag(label: item.color, color: Colors.pink, icon: Icons.color_lens_outlined),
+                        if (item.brand != "N/A") _Tag(label: item.brand, color: Colors.deepPurple, icon: Icons.branding_watermark_outlined),
+                        if (item.itemType != "N/A") _Tag(label: item.itemType, color: Colors.brown, icon: Icons.style_outlined),
+                        if (item.unit != "Piece") _Tag(label: item.unit, color: Colors.cyan, icon: Icons.straighten),
                       ],
                     ),
                   ],
@@ -771,9 +783,13 @@ class _DamageFormSheetState extends State<DamageFormSheet> {
                       ),
                       if (item.barcode != "N/A") ...[
                         const SizedBox(width: 8),
-                        Text(
-                          "• ${item.barcode}",
-                          style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                        Expanded(
+                          child: Text(
+                            "• ${item.barcode}",
+                            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
                       ],
                     ],
@@ -787,6 +803,10 @@ class _DamageFormSheetState extends State<DamageFormSheet> {
                       if (item.subCategory != "N/A") _Tag(label: item.subCategory, color: Colors.indigo, icon: Icons.account_tree),
                       if (item.size != "N/A") _Tag(label: item.size, color: Colors.orange, icon: Icons.straighten),
                       if (item.weight != "N/A") _Tag(label: item.weight, color: Colors.teal, icon: Icons.scale),
+                      if (item.color != "N/A") _Tag(label: item.color, color: Colors.pink, icon: Icons.color_lens_outlined),
+                      if (item.brand != "N/A") _Tag(label: item.brand, color: Colors.deepPurple, icon: Icons.branding_watermark_outlined),
+                      if (item.itemType != "N/A") _Tag(label: item.itemType, color: Colors.brown, icon: Icons.style_outlined),
+                      if (item.unit != "Piece") _Tag(label: item.unit, color: Colors.cyan, icon: Icons.straighten),
                     ],
                   ),
                 ],
@@ -899,7 +919,14 @@ class _Tag extends StatelessWidget {
           children: [
             Icon(icon, size: 11, color: color),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),
