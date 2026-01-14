@@ -9,6 +9,7 @@ import '../../data/models/sale_model.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/models/credit_model.dart';
 import '../../data/models/damage_model.dart';
+import '../utils/image_path_helper.dart';
 import 'logger_service.dart';
 
 class BackupService {
@@ -26,7 +27,7 @@ class BackupService {
       String? imageBase64;
       if (e.imagePath != null && e.imagePath!.isNotEmpty) {
         try {
-          final imgFile = File(e.imagePath!);
+          final imgFile = ImagePathHelper.getFile(e.imagePath!);
           if (await imgFile.exists()) {
             final bytes = await imgFile.readAsBytes();
             imageBase64 = base64Encode(bytes);
@@ -164,7 +165,7 @@ class BackupService {
                   final dir = await getApplicationDocumentsDirectory();
                   final imgFile = File('${dir.path}/product_${item['id']}_${DateTime.now().millisecondsSinceEpoch}.png');
                   await imgFile.writeAsBytes(bytes);
-                  restoredImagePath = imgFile.path;
+                  restoredImagePath = ImagePathHelper.toRelativePath(imgFile.path);
                 } catch (e) {
                   AppLogger.error("Error restoring product image", error: e);
                 }
@@ -321,7 +322,7 @@ class BackupService {
                 final file = File('${dir.path}/restored_logo_${DateTime.now().millisecondsSinceEpoch}.png');
                 await file.writeAsBytes(bytes);
                 
-                settings['logoPath'] = file.path; 
+                settings['logoPath'] = ImagePathHelper.toRelativePath(file.path); 
               }
             } catch (e) {
               AppLogger.error("Error restoring logo", error: e);
@@ -349,7 +350,7 @@ class BackupService {
     if (settingsMap.containsKey('logoPath')) {
       final String? path = settingsMap['logoPath'] as String?;
       if (path != null && path.isNotEmpty) {
-        final file = File(path);
+        final file = ImagePathHelper.getFile(path);
         if (await file.exists()) {
           try {
             final bytes = await file.readAsBytes();

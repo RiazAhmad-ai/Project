@@ -245,7 +245,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // === 4. EDIT ITEM SHEET ===
   void _showEditSheet(InventoryItem item) {
     final nameCtrl = TextEditingController(text: item.name);
-    final priceCtrl = TextEditingController(text: item.price.toStringAsFixed(0));
+    final priceCtrl = TextEditingController(text: item.price.toString());
     final stockCtrl = TextEditingController(text: item.stock.toString());
     final barcodeCtrl = TextEditingController(text: item.barcode);
     final categoryCtrl = TextEditingController(text: item.category);
@@ -874,8 +874,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           height: 54,
                           child: ElevatedButton(
                             onPressed: () {
-                              if (barcodeCtrl.text.trim().isEmpty) return;
-                              item.name = nameCtrl.text;
+                              if (nameCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item Name is required!")));
+                                return;
+                              }
+                              if (barcodeCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Barcode is required!")));
+                                return;
+                              }
+                              if (priceCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Price is required!")));
+                                return;
+                              }
+                              
+                              item.name = nameCtrl.text.trim();
                               item.price = double.tryParse(priceCtrl.text) ?? item.price;
                               item.stock = int.tryParse(stockCtrl.text) ?? item.stock;
                               item.barcode = barcodeCtrl.text.trim();
