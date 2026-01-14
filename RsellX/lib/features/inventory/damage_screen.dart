@@ -83,13 +83,10 @@ class DamageScreen extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final record = history[index];
                       // Find item image from inventory if possible
-                      String? imagePath;
-                      try {
-                        final item = provider.inventory.firstWhere((e) => e.id == record.itemId);
-                        imagePath = item.imagePath;
-                      } catch (_) {}
+                      final item = provider.findItemById(record.itemId);
+                      final imagePath = item?.imagePath;
                       
-                      return _buildHistoryCard(context, record, imagePath);
+                      return RepaintBoundary(child: _buildHistoryCard(context, record, imagePath));
                     },
                   ),
           ),
@@ -138,7 +135,11 @@ class DamageScreen extends StatelessWidget {
                     height: 55,
                     color: Colors.red.withOpacity(0.05),
                     child: imagePath != null && ImagePathHelper.exists(imagePath)
-                        ? Image.file(ImagePathHelper.getFile(imagePath), fit: BoxFit.cover)
+                        ? Image.file(
+                            ImagePathHelper.getFile(imagePath),
+                            fit: BoxFit.cover,
+                            cacheWidth: 110, // Optimized cache width
+                          )
                         : const Icon(Icons.broken_image_outlined, color: Colors.redAccent, size: 24),
                   ),
                 ),

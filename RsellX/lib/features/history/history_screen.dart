@@ -636,11 +636,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final salesProvider = context.watch<SalesProvider>();
-    final settingsProvider = context.watch<SettingsProvider>();
+    // Only listen to specific changes to minimize rebuilds
+    final salesHash = context.select<SalesProvider, int>((p) => p.historyHash);
+    final historyForDate = context.read<SalesProvider>().getSalesByDate(_selectedDate);
+    
+    // Sync data (this has a check inside to avoid redundant work)
+    _syncData(historyForDate);
 
-    // Sync data reactively from the provider's source of truth using optimized getter
-    _syncData(salesProvider.getSalesByDate(_selectedDate));
+    final isVisible = context.select<SettingsProvider, bool>((p) => p.isBalanceVisible);
+    final settingsProvider = context.read<SettingsProvider>();
 
     double dayTotal = 0;
     double dayProfit = 0;
@@ -721,11 +725,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               child: IconButton(
                                 padding: const EdgeInsets.all(8),
                                 constraints: const BoxConstraints(),
-                                onPressed: () => ReportingService.generateSalesReport(
-                                  shopName: settingsProvider.shopName,
-                                  sales: _filteredHistory,
-                                  date: _selectedDate,
-                                ),
+                                onPressed: () {
+                                  final settings = context.read<SettingsProvider>();
+                                  ReportingService.generateSalesReport(
+                                    shopName: settings.shopName,
+                                    sales: _filteredHistory,
+                                    date: _selectedDate,
+                                  );
+                                },
                                 icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 20),
                                 tooltip: "Generate PDF",
                               ),
@@ -833,104 +840,105 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
           // 2.5. PREMIUM STATISTICS CARDS
           SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1e3c72), Color(0xFF2a5298)], // Blue gradient
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
+            child: Consumer2<SalesProvider, SettingsProvider>(
+              builder: (context, salesProvider, settingsProvider, _) => Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1e3c72), Color(0xFF2a5298)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Stack(
-                  children: [
-                    // Decorative circle (smaller)
-                    Positioned(
-                      right: -30,
-                      top: -30,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary.withOpacity(0.1),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              _buildSalesStat(
-                                salesProvider,
-                                settingsProvider: settingsProvider,
-                                label: _formatDate(_selectedDate) == _formatDate(DateTime.now()) ? "TODAY" : "SELECTED",
-                                subtitle: DateFormat('MMM d, yyyy').format(_selectedDate),
-                                sales: salesProvider.getTotalSalesForDate(_selectedDate),
-                                profit: salesProvider.getTotalProfitForDate(_selectedDate),
-                                icon: Icons.bolt_rounded,
-                                color: Colors.blueAccent,
-                                onLongPress: () => _showSalesDetailedReport(context, "DAILY SALES", salesProvider.getSalesForDate(_selectedDate), salesProvider.getTotalSalesForDate(_selectedDate), salesProvider.getTotalProfitForDate(_selectedDate), Colors.blue),
-                              ),
-                              const SizedBox(width: 10),
-                              _buildSalesStat(
-                                salesProvider,
-                                settingsProvider: settingsProvider,
-                                label: "WEEKLY",
-                                subtitle: "${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)))} - ${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)).add(const Duration(days: 6)))}",
-                                sales: salesProvider.getTotalSalesForWeek(_selectedDate),
-                                profit: salesProvider.getTotalProfitForWeek(_selectedDate),
-                                icon: Icons.auto_graph_rounded,
-                                color: Colors.orangeAccent,
-                                onLongPress: () => _showSalesDetailedReport(context, "WEEKLY SALES", salesProvider.getSalesForWeek(_selectedDate), salesProvider.getTotalSalesForWeek(_selectedDate), salesProvider.getTotalProfitForWeek(_selectedDate), Colors.orange),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _buildSalesStat(
-                                salesProvider,
-                                settingsProvider: settingsProvider,
-                                label: "MONTHLY",
-                                subtitle: DateFormat('MMMM yyyy').format(_selectedDate),
-                                sales: salesProvider.getTotalSalesForMonth(_selectedDate),
-                                profit: salesProvider.getTotalProfitForMonth(_selectedDate),
-                                icon: Icons.calendar_month_rounded,
-                                color: Colors.greenAccent,
-                                onLongPress: () => _showSalesDetailedReport(context, "MONTHLY SALES", salesProvider.getSalesForMonth(_selectedDate), salesProvider.getTotalSalesForMonth(_selectedDate), salesProvider.getTotalProfitForMonth(_selectedDate), Colors.green),
-                              ),
-                              const SizedBox(width: 10),
-                              _buildSalesStat(
-                                salesProvider,
-                                settingsProvider: settingsProvider,
-                                label: "ANNUAL",
-                                subtitle: DateFormat('yyyy').format(_selectedDate),
-                                sales: salesProvider.getTotalSalesForYear(_selectedDate),
-                                profit: salesProvider.getTotalProfitForYear(_selectedDate),
-                                icon: Icons.account_balance_wallet_rounded,
-                                color: Colors.purpleAccent,
-                                onLongPress: () => _showSalesDetailedReport(context, "ANNUAL SALES", salesProvider.getSalesForYear(_selectedDate), salesProvider.getTotalSalesForYear(_selectedDate), salesProvider.getTotalProfitForYear(_selectedDate), Colors.purple),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
                     ),
                   ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: -30,
+                        top: -30,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primary.withOpacity(0.1),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                _buildSalesStat(
+                                  salesProvider,
+                                  settingsProvider: settingsProvider,
+                                  label: _formatDate(_selectedDate) == _formatDate(DateTime.now()) ? "TODAY" : "SELECTED",
+                                  subtitle: DateFormat('MMM d, yyyy').format(_selectedDate),
+                                  sales: salesProvider.getTotalSalesForDate(_selectedDate),
+                                  profit: salesProvider.getTotalProfitForDate(_selectedDate),
+                                  icon: Icons.bolt_rounded,
+                                  color: Colors.blueAccent,
+                                  onLongPress: () => _showSalesDetailedReport(context, "DAILY SALES", salesProvider.getSalesForDate(_selectedDate), salesProvider.getTotalSalesForDate(_selectedDate), salesProvider.getTotalProfitForDate(_selectedDate), Colors.blue),
+                                ),
+                                const SizedBox(width: 10),
+                                _buildSalesStat(
+                                  salesProvider,
+                                  settingsProvider: settingsProvider,
+                                  label: "WEEKLY",
+                                  subtitle: "${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)))} - ${DateFormat('MMM d').format(_selectedDate.subtract(Duration(days: _selectedDate.weekday - 1)).add(const Duration(days: 6)))}",
+                                  sales: salesProvider.getTotalSalesForWeek(_selectedDate),
+                                  profit: salesProvider.getTotalProfitForWeek(_selectedDate),
+                                  icon: Icons.auto_graph_rounded,
+                                  color: Colors.orangeAccent,
+                                  onLongPress: () => _showSalesDetailedReport(context, "WEEKLY SALES", salesProvider.getSalesForWeek(_selectedDate), salesProvider.getTotalSalesForWeek(_selectedDate), salesProvider.getTotalProfitForWeek(_selectedDate), Colors.orange),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                _buildSalesStat(
+                                  salesProvider,
+                                  settingsProvider: settingsProvider,
+                                  label: "MONTHLY",
+                                  subtitle: DateFormat('MMMM yyyy').format(_selectedDate),
+                                  sales: salesProvider.getTotalSalesForMonth(_selectedDate),
+                                  profit: salesProvider.getTotalProfitForMonth(_selectedDate),
+                                  icon: Icons.calendar_month_rounded,
+                                  color: Colors.greenAccent,
+                                  onLongPress: () => _showSalesDetailedReport(context, "MONTHLY SALES", salesProvider.getSalesForMonth(_selectedDate), salesProvider.getTotalSalesForMonth(_selectedDate), salesProvider.getTotalProfitForMonth(_selectedDate), Colors.green),
+                                ),
+                                const SizedBox(width: 10),
+                                _buildSalesStat(
+                                  salesProvider,
+                                  settingsProvider: settingsProvider,
+                                  label: "ANNUAL",
+                                  subtitle: DateFormat('yyyy').format(_selectedDate),
+                                  sales: salesProvider.getTotalSalesForYear(_selectedDate),
+                                  profit: salesProvider.getTotalProfitForYear(_selectedDate),
+                                  icon: Icons.account_balance_wallet_rounded,
+                                  color: Colors.purpleAccent,
+                                  onLongPress: () => _showSalesDetailedReport(context, "ANNUAL SALES", salesProvider.getSalesForYear(_selectedDate), salesProvider.getTotalSalesForYear(_selectedDate), salesProvider.getTotalProfitForYear(_selectedDate), Colors.purple),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -971,13 +979,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             child: SlideAnimation(
                               verticalOffset: 50.0,
                               child: FadeInAnimation(
-                                child: _BillCard(
-                                  billId: billId,
-                                  items: items,
-                                  onRefund: (item) => _handleRefund(item),
-                                  onDelete: (id) => _handleDelete(id),
-                                  onEdit: (item) => _handleEdit(item),
-                                  onImageTap: (path, name) => _showImagePreview(path, name),
+                                child: RepaintBoundary(
+                                  child: _BillCard(
+                                    billId: billId,
+                                    items: items,
+                                    onRefund: _handleRefund,
+                                    onDelete: _handleDelete,
+                                    onEdit: _handleEdit,
+                                    onImageTap: _showImagePreview,
+                                  ),
                                 ),
                               ),
                             ),

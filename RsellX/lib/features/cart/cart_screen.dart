@@ -298,7 +298,7 @@ class _CartScreenState extends State<CartScreen> {
                                       border: item.imagePath != null ? Border.all(color: Colors.grey[200]!) : null,
                                       image: item.imagePath != null && ImagePathHelper.exists(item.imagePath!)
                                           ? DecorationImage(
-                                              image: ResizeImage(FileImage(ImagePathHelper.getFile(item.imagePath!)), width: 112),
+                                              image: ResizeImage(FileImage(ImagePathHelper.getFile(item.imagePath!)), width: 120),
                                               fit: BoxFit.cover,
                                             )
                                           : null,

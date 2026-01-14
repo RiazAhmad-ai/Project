@@ -1019,75 +1019,64 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Use Consumer to rebuild when inventory changes
-    return Consumer<InventoryProvider>(
-      builder: (context, inventoryProvider, _) {
-        // Trigger a refresh if the inventory has changed since we last loaded it.
-        // We use a listener in initState now or just check a hash/timestamp if needed.
-        // For simplicity, we can load initial data whenever the provider notifies, 
-        // but we must be careful not to create an infinite loop.
-        // A better way is to listen to the provider in initState.
-        
-        final settingsProvider = context.watch<SettingsProvider>();
-        
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            title: Text("Stock Inventory", style: AppTextStyles.h2),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  _viewType == InventoryViewType.list ? Icons.grid_view_rounded : Icons.view_list_rounded,
-                  color: AppColors.accent,
-                ),
-                tooltip: _viewType == InventoryViewType.list ? "Switch to Grid" : "Switch to List",
-                onPressed: () {
-                  setState(() {
-                    _viewType = _viewType == InventoryViewType.list 
-                        ? InventoryViewType.grid 
-                        : InventoryViewType.list;
-                  });
-                },
-              ),
-              CartBadge(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CartScreen()),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
-                onPressed: () {
-                  final inventoryProvider = context.read<InventoryProvider>();
-                  ReportingService.generateInventoryExcel(
-                    shopName: settingsProvider.shopName,
-                    items: inventoryProvider.inventory
-                  );
-                },
-              ),
-              IconButton(
-                icon: const CircleAvatar(backgroundColor: AppColors.accent, child: Icon(Icons.add, color: Colors.white)),
-                onPressed: _addNewItemWithBarcode,
-              ),
-              const SizedBox(width: 16),
-            ],
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text("Stock Inventory", style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _viewType == InventoryViewType.list ? Icons.grid_view_rounded : Icons.view_list_rounded,
+              color: AppColors.accent,
+            ),
+            tooltip: _viewType == InventoryViewType.list ? "Switch to Grid" : "Switch to List",
+            onPressed: () {
+              setState(() {
+                _viewType = _viewType == InventoryViewType.list 
+                    ? InventoryViewType.grid 
+                    : InventoryViewType.list;
+              });
+            },
           ),
-          body: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: Colors.white,
-                child: Column(
+          CartBadge(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CartScreen()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.table_view_rounded, color: AppColors.success),
+            onPressed: () {
+              final inventoryProvider = context.read<InventoryProvider>();
+              final settingsProvider = context.read<SettingsProvider>();
+              ReportingService.generateInventoryExcel(
+                shopName: settingsProvider.shopName,
+                items: inventoryProvider.inventory
+              );
+            },
+          ),
+          IconButton(
+            icon: const CircleAvatar(backgroundColor: AppColors.accent, child: Icon(Icons.add, color: Colors.white)),
+            onPressed: _addNewItemWithBarcode,
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
+                    Expanded(
+                      child: TextField(
                         controller: _searchController,
                         onChanged: (val) {
-                          // Debounce search to avoid heavy calls on every keystroke
                           _searchDebouncer.run(() {
                             if (mounted) {
                               setState(() => _searchQuery = val);
@@ -1117,7 +1106,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // QR SCANNER
                     GestureDetector(
                       onTap: _scanForSearch,
                       child: Container(
@@ -1128,7 +1116,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                   ],
                 ),
-                // Active Filter Chips
                 if (_selectedCategory != null || _selectedSubCategory != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -1171,11 +1158,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
               ],
             ),
           ),
-          Expanded(child: _buildItemList()),
+          Expanded(
+            child: Consumer<InventoryProvider>(
+              builder: (context, _, __) => _buildItemList(),
+            ),
+          ),
         ],
       ),
-        );
-      },
     );
   }
 

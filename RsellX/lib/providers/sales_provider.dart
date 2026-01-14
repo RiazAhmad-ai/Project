@@ -16,6 +16,10 @@ class SalesProvider extends ChangeNotifier {
   // Analytics Cache to prevent re-calc on every build
   final Map<String, Map<String, dynamic>> _analyticsCache = {};
   
+  // Track changes to history for efficient UI building
+  int _historyHash = 0;
+  int get historyHash => _historyHash;
+  
   // Stream subscriptions for proper cleanup
   StreamSubscription? _historyBoxSubscription;
   StreamSubscription? _cartBoxSubscription;
@@ -33,6 +37,7 @@ class SalesProvider extends ChangeNotifier {
           _historyDirty = true;
           _analyticsCache.clear();
           _cachedTopProducts = null;
+          _historyHash++;
           notifyListeners();
         }, onError: (error) {
           AppLogger.error('SalesProvider history stream error', error: error);

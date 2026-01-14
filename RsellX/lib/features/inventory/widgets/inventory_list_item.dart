@@ -30,7 +30,7 @@ class InventoryListItem extends StatelessWidget {
       shadowColor: const Color(0x0D000000),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14), 
-        side: BorderSide(color: lowStock ? const Color(0x4DEB1F20) : const Color(0xFFEEEEEE))
+        side: BorderSide(color: lowStock ? const Color(0xFFEB1F20) : const Color(0xFFEEEEEE), width: lowStock ? 1.5 : 1)
       ),
       margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
@@ -231,12 +231,15 @@ class _Tag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Optimization: Calculate color once outside the build if possible, 
+    // but here we use withOpacity which is fine for small tags.
+    // However, to be even faster, we could use a color utility.
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12), 
+          color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(6), 
           border: Border.all(color: color.withOpacity(0.2))
         ),

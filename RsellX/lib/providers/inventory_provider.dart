@@ -62,11 +62,16 @@ class InventoryProvider extends ChangeNotifier {
     return _cachedInventory;
   }
 
-  List<DamageRecord> get damageHistory => _damageBox.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+  // Optimized damage history with caching
+  List<DamageRecord>? _cachedDamageHistory;
+  List<DamageRecord> get damageHistory {
+    _cachedDamageHistory ??= _damageBox.values.toList()..sort((a, b) => b.date.compareTo(a.date));
+    return _cachedDamageHistory!;
+  }
 
   void _refreshCache() {
     _cachedInventory = _inventoryBox.values.toList();
-    _rebuildBarcodeIndex();
+    _rebuildIndices();
     _inventoryDirty = false;
   }
 
@@ -132,12 +137,15 @@ class InventoryProvider extends ChangeNotifier {
   double? _cachedTotalDamageLoss;
   int? _cachedLowStockCount;
   
-  // === BARCODE INDEX ===
+  // === BARCODE & ID INDEX ===
   final Map<String, InventoryItem> _barcodeIndex = {};
+  final Map<String, InventoryItem> _idIndex = {};
 
-  void _rebuildBarcodeIndex() {
+  void _rebuildIndices() {
     _barcodeIndex.clear();
+    _idIndex.clear();
     for (var item in _cachedInventory) {
+      _idIndex[item.id] = item;
       if (item.barcode.isNotEmpty) {
         _barcodeIndex[item.barcode] = item;
       }
@@ -148,8 +156,9 @@ class InventoryProvider extends ChangeNotifier {
     _cachedTotalStockValue = null;
     _cachedTotalDamageLoss = null;
     _cachedLowStockCount = null;
+    _cachedDamageHistory = null;
     // Index rebuild needed when inventory changes
-    _rebuildBarcodeIndex();
+    _rebuildIndices();
   }
 
   double getTotalStockValue() {
@@ -185,7 +194,11 @@ class InventoryProvider extends ChangeNotifier {
 
   InventoryItem? findItemByBarcode(String barcode) {
     if (_inventoryDirty) _refreshCache();
-    // O(1) Lookup
     return _barcodeIndex[barcode];
+  }
+
+  InventoryItem? findItemById(String id) {
+    if (_inventoryDirty) _refreshCache();
+    return _idIndex[id];
   }
 }

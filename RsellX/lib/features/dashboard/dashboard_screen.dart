@@ -135,9 +135,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.menu_book_rounded, color: Colors.black),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CreditScreen())),
           ),
-          Consumer<SalesProvider>(
-            builder: (context, sales, _) {
-              final cartCount = sales.cartCount;
+          Selector<SalesProvider, int>(
+            selector: (_, sales) => sales.cartCount,
+            builder: (context, cartCount, _) {
               return Stack(
                 alignment: Alignment.center,
                 children: [
@@ -213,16 +213,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const AlertCard(),
+                const RepaintBoundary(child: AlertCard()),
                 const SizedBox(height: 20),
-                AnalysisChart(
-                  key: ValueKey("chart_${_filter}_${salesProvider.historyItems.length}"),
-                  title: "$_filter Overview",
-                  chartData: analyticsData,
-                  isBalanceVisible: settingsProvider.isBalanceVisible,
+                RepaintBoundary(
+                  child: AnalysisChart(
+                    key: ValueKey("chart_${_filter}_${salesProvider.historyHash}"), // Use hash instead of full length if possible
+                    title: "$_filter Overview",
+                    chartData: analyticsData,
+                    isBalanceVisible: settingsProvider.isBalanceVisible,
+                  ),
                 ),
                 const SizedBox(height: 20),
-                TopProductsChart(data: salesProvider.getTopSellingProducts()),
+                RepaintBoundary(child: TopProductsChart(data: salesProvider.getTopSellingProducts())),
                 const SizedBox(height: 40),
               ],
             ),
